@@ -1,0 +1,6 @@
+syntax = "proto3";
+
+message FirmwarePackage {
+  string version = 1;
+  bytes data = 2;
+}

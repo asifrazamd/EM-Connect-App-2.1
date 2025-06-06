@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package em_fw_package;
+
+enum Encryption_Type
+{
+    NO_ENC = 0;
+    AES_ECB = 1;
+    AES_CBC = 2;
+    AES_CTR = 3;
+}
+
+enum Section_Code
+{
+    FirmwareUpdater = 0;
+    EM_Core = 1;
+    CustomerApp = 3;
+    Bootloader = 4;
+}
+
+message Silicon_Info
+{
+    /* Silicon Revision field corresponds to the Design Iteration */
+    uint32 silicon_rev = 1;
+    /* Silicon Type field corresponds to the IC identification code (e.g., 9305) */
+    uint32 silicon_type = 2;
+}
+message Target_Information
+{
+    Silicon_Info silicon_info = 1;   
+    /* product name field represents the name of the end product name (e.g., EMBC0x) */
+    string product_id = 2;
+}
+
+message FW_Header 
+{
+    uint32 hdr_ver = 1;
+    uint32 hdr_len = 2;
+    Section_Code section_code = 3;
+    uint32 fw_start_addr = 4;
+    uint32 fw_size = 5;
+    uint32 fw_crc = 6;
+    uint32 emcore_crc = 7;
+    uint32 fw_options = 8;
+    uint32 fw_ver = 9;
+    uint32 fw_exec_addr = 10;
+    uint32 hdr_crc = 11;
+}
+
+message FW_Signature
+{
+    bytes x = 1;
+    bytes y = 2;
+}
+
+message FW_Element
+{
+    FW_Header fw_hdr = 1;
+    bytes fw_hdr_raw = 2;
+    bytes fw_code_raw = 3;
+    FW_Signature fw_signature = 4;
+    Encryption_Type enc_type = 5;
+    bytes crypto_init_data = 6;
+    bytes digest = 7;
+}
+
+message FW_Package 
+{    
+    uint32 fw_count = 1;
+    Target_Information target_info = 2;
+    repeated FW_Element fw_elements = 3;
+}
