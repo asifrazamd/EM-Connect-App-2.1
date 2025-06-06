@@ -142,6 +142,10 @@ class _EddystoneUrl extends State<EddystoneUrl> {
     }
   }
 
+  
+  
+  
+  
   void _showDialog(BuildContext context, String title, String message) {
     showDialog(
       context: context,

@@ -114,28 +114,47 @@ class _IBeaconConfig extends State<IBeaconConfig> {
   }
 
 //Method to read beacon values
-  Future readIBeaconConfig() async {
-    Uint8List deviceInfoopcode = Uint8List.fromList([0x30]);
+  // Future readIBeaconConfig() async {
+  //   Uint8List deviceInfoopcode = Uint8List.fromList([0x30]);
 
-    try {
-      BleService selService = widget.beaconTunerService.service;
-      BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+  //   try {
+  //     BleService selService = widget.beaconTunerService.service;
+  //     BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
 
-      debugPrint("into IBeaconConfig get\n");
+  //     debugPrint("into IBeaconConfig get\n");
 
-      await UniversalBle.writeValue(
-        widget.deviceId,
-        selService.uuid,
-        selChar.uuid,
-        deviceInfoopcode,
-        BleOutputProperty.withResponse,
-      );
-      await Future.delayed(const Duration(milliseconds: 2000));
-    } catch (e) {
-      print("Error writing advertising settings: $e");
-    }
+  //     await UniversalBle.writeValue(
+  //       widget.deviceId,
+  //       selService.uuid,
+  //       selChar.uuid,
+  //       deviceInfoopcode,
+  //       BleOutputProperty.withResponse,
+  //     );
+  //     await Future.delayed(const Duration(milliseconds: 2000));
+  //   } catch (e) {
+  //     print("Error writing advertising settings: $e");
+  //   }
+  // }
+
+    
+    
+    
+    Future readIBeaconConfig() async {
+  try {
+    await EmBleOps.serialize(
+      deviceId: widget.deviceId,
+      service: widget.beaconTunerService.service,
+      characteristic: widget.beaconTunerService.beaconTunerChar,
+      opcodes: [0x30],
+    );
+  } catch (e) {
+    print("Error in readIBeaconConfig: $e");
   }
+}
 
+  
+  
+  
   void _showDialog(BuildContext context, String title, String message) {
     showDialog(
       context: context,

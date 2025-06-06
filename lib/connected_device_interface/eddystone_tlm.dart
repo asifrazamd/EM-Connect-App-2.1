@@ -71,28 +71,43 @@ class _EddystoneTlm extends State<EddystoneTlm> {
   }
 
   //Method to read beacon values
+  // Future readBeacon() async {
+  //   Uint8List deviceInfoopcode = Uint8List.fromList([0x3A]);
+
+  //   try {
+  //     BleService selService = widget.beaconTunerService.service;
+  //     BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+
+  //     debugPrint("into eddystone uuid get\n");
+
+  //     await UniversalBle.writeValue(
+  //       widget.deviceId,
+  //       selService.uuid,
+  //       selChar.uuid,
+  //       deviceInfoopcode,
+  //       BleOutputProperty.withResponse,
+  //     );
+  //     await Future.delayed(const Duration(milliseconds: 2000));
+  //   } catch (e) {
+  //     print("Error writing advertising settings: $e");
+  //   }
+  // }
+
   Future readBeacon() async {
-    Uint8List deviceInfoopcode = Uint8List.fromList([0x3A]);
-
-    try {
-      BleService selService = widget.beaconTunerService.service;
-      BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
-
-      debugPrint("into eddystone uuid get\n");
-
-      await UniversalBle.writeValue(
-        widget.deviceId,
-        selService.uuid,
-        selChar.uuid,
-        deviceInfoopcode,
-        BleOutputProperty.withResponse,
-      );
-      await Future.delayed(const Duration(milliseconds: 2000));
-    } catch (e) {
-      print("Error writing advertising settings: $e");
-    }
+  try {
+    await EmBleOps.serialize(
+      deviceId: widget.deviceId,
+      service: widget.beaconTunerService.service,
+      characteristic: widget.beaconTunerService.beaconTunerChar,
+      opcodes: [0x3A],
+    );
+  } catch (e) {
+    print("Error in readIBeaconConfig: $e");
   }
+}
 
+  
+  
   bool check = false; // Flag to track dialog state
 
 //Method to extract byte values for all beacon types from response

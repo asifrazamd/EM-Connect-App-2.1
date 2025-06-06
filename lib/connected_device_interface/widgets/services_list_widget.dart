@@ -327,7 +327,23 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
   }
 
   
-  
+  Future<void>charactersticSubscribe() async {
+    if (beaconTunerService == null) {
+      debugPrint("BeaconTunerService is not initialized yet.");
+      return;
+    }
+
+    final characteristic = beaconTunerService!.beaconTunerChar;
+
+    if (!characteristic.properties.contains(CharacteristicProperty.notify) &&
+        !characteristic.properties.contains(CharacteristicProperty.indicate)) {
+      debugPrint(
+          "Characteristic ${characteristic.uuid} does not support notifications or indications.");
+      return;
+    }
+
+    await subscribeAssignedCharacteristic();
+  }
   
   Future<void> subscribeAssignedCharacteristic() async {
     debugPrint(

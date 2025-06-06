@@ -129,7 +129,11 @@ class _ManufacturerSpecificData extends State<ManufacturerSpecificData> {
     }
   }
 
-//Method to extract byte values for all beacon types from response
+
+
+
+
+//Method to extract byte values for all beacon types from response 
   void _handleValueChange(
       String deviceId, String characteristicId, Uint8List value) {
     String hexString =

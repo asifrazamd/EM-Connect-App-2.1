@@ -76,7 +76,7 @@ class _EddystoneUid extends State<EddystoneUid> {
 
     UniversalBle.onValueChange = _handleValueChange;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      readBeacon();
+      //readBeacon();
 
       addgetrow(sharedText);
     });
@@ -336,28 +336,31 @@ class _EddystoneUid extends State<EddystoneUid> {
   }
 
   //Method to read beacon values
-  Future readBeacon() async {
-    Uint8List deviceInfoopcode = Uint8List.fromList([0x32]);
+  // Future readBeacon() async {
+  //   Uint8List deviceInfoopcode = Uint8List.fromList([0x32]);
 
-    try {
-      BleService selService = widget.beaconTunerService.service;
-      BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+  //   try {
+  //     BleService selService = widget.beaconTunerService.service;
+  //     BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
 
-      debugPrint("into eddystone uuid get\n");
+  //     debugPrint("into eddystone uuid get\n");
 
-      await UniversalBle.writeValue(
-        widget.deviceId,
-        selService.uuid,
-        selChar.uuid,
-        deviceInfoopcode,
-        BleOutputProperty.withResponse,
-      );
-      await Future.delayed(const Duration(milliseconds: 2000));
-    } catch (e) {
-      print("Error writing advertising settings: $e");
-    }
-  }
+  //     await UniversalBle.writeValue(
+  //       widget.deviceId,
+  //       selService.uuid,
+  //       selChar.uuid,
+  //       deviceInfoopcode,
+  //       BleOutputProperty.withResponse,
+  //     );
+  //     await Future.delayed(const Duration(milliseconds: 2000));
+  //   } catch (e) {
+  //     print("Error writing advertising settings: $e");
+  //   }
+  // }
 
+  
+  
+  
   bool check = false; // Flag to track dialog state
 
 //Method to extract byte values for all beacon types from response

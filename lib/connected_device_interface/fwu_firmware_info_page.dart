@@ -169,6 +169,10 @@ class _FwuFirmwareInfoPageState extends State<FwuFirmwareInfoPage> {
     }
   }
 
+  
+  
+  
+  
   void rebootToApplication() async {
     Uint8List opcode = Uint8List.fromList([0x04, 0x02]);
 
