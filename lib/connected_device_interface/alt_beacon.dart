@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:emconnect/connected_device_interface/device_service_globals.dart';
+import 'package:emconnect/connected_device_interface/em_ble_ops.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/universal_ble.dart';
@@ -161,6 +162,7 @@ class _AltBeacon extends State<AltBeacon> {
     UniversalBle.onValueChange = _handleValueChange;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       readBeacon();
+      //beaconTest();
 
       addRow();
     });
@@ -198,6 +200,30 @@ class _AltBeacon extends State<AltBeacon> {
     }
   }
 
+  // Future<void> beaconTest() async {
+  //   Uint8List deviceInfoOpcode;
+
+  //   try {
+  //     isFetchComplete = false;
+
+  //     deviceInfoOpcode = Uint8List.fromList([0x36]);
+
+  //     // Use your static utility method here
+  //     // //await EmBleOpcodes.writeValueWithResponse(
+  //     //   deviceId: widget.deviceId,
+  //     //   beaconTunerService: widget.beaconTunerService,
+  //     //   payload: deviceInfoOpcode,
+  //     // );
+
+  //     await Future.delayed(const Duration(milliseconds: 2000));
+  //   } catch (e) {
+  //     print("Error writing advertising settings: $e");
+  //   }
+  // }
+
+  
+  
+  
   bool check = false; // Flag to track dialog state
 
 //Method to extract byte values for all beacon types from response
@@ -294,48 +320,84 @@ class _AltBeacon extends State<AltBeacon> {
     );
   }
 
-  Uint8List createSubstitutionSettings(Uint8List Advopcode, String hex) {
-    List<int> byteList = [];
+  // Uint8List createSubstitutionSettings(Uint8List Advopcode, String hex) {
+  //   List<int> byteList = [];
 
-    for (int i = 0; i < hex.length; i += 2) {
-      byteList.add(int.parse(hex.substring(i, i + 2), radix: 16));
+  //   for (int i = 0; i < hex.length; i += 2) {
+  //     byteList.add(int.parse(hex.substring(i, i + 2), radix: 16));
+  //   }
+  //   print(byteList);
+  //   return Uint8List.fromList([
+  //     Advopcode[0],
+  //     ...byteList,
+  //   ]);
+  // }
+
+  // void setSubstitutionPacket(String hexString) async {
+  //   Uint8List Advopcode = Uint8List.fromList([0x61]);
+
+  //   //Convert string pairs into hex bytes
+  //   // AltBeacon opcode
+
+  //   try {
+  //     BleService selService = widget.beaconTunerService.service;
+  //     BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+
+  //     Uint8List SubstituitionSettings =
+  //         createSubstitutionSettings(Advopcode, hexString);
+
+  //     // await UniversalBle.writeValue(
+  //     //   widget.deviceId,
+  //     //   selService.uuid,
+  //     //   selChar.uuid,
+  //     //   SubstituitionSettings,
+  //     //   BleOutputProperty.withResponse,
+  //     // );
+
+  //     await EmBleOps.writeWithResponse(
+  //       deviceId: widget.deviceId,
+  //       service: selService,
+  //       characteristic: selChar,
+  //       payload: SubstituitionSettings,
+  //     );
+
+  //     print("Substitution packet sent: $SubstituitionSettings");
+  //   } catch (e) {
+  //     print("Error writing substitution settings: $e");
+  //   }
+  // }
+
+  void setSubstitutionPacket(String hexString) async {
+  Uint8List Advopcode = Uint8List.fromList([0x61]);
+
+  try {
+    BleService selService = widget.beaconTunerService.service;
+    BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+
+    // Convert hex string to byte array
+    List<int> byteList = [];
+    for (int i = 0; i < hexString.length; i += 2) {
+      byteList.add(int.parse(hexString.substring(i, i + 2), radix: 16));
     }
-    print(byteList);
-    return Uint8List.fromList([
+
+    Uint8List substitutionSettings = EmBleOps.seralize([
       Advopcode[0],
       ...byteList,
     ]);
+
+    await EmBleOps.writeWithResponse(
+      deviceId: widget.deviceId,
+      service: selService,
+      characteristic: selChar,
+      payload: substitutionSettings,
+    );
+
+    print("Substitution packet sent: $substitutionSettings");
+  } catch (e) {
+    print("Error writing substitution settings: $e");
   }
+}
 
-  void setSubstitutionPacket(String hexString) async {
-    Uint8List Advopcode = Uint8List.fromList([0x61]);
-
-    //Convert string pairs into hex bytes
-    // AltBeacon opcode
-
-    try {
-      BleService selService = widget.beaconTunerService.service;
-      BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
-
-      Uint8List SubstituitionSettings =
-          createSubstitutionSettings(Advopcode, hexString);
-
-      await UniversalBle.writeValue(
-        widget.deviceId,
-        selService.uuid,
-        selChar.uuid,
-        SubstituitionSettings,
-        BleOutputProperty.withResponse,
-      );
-
-      print("Substitution packet sent: $SubstituitionSettings");
-    } catch (e) {
-      print("Error writing substitution settings: $e");
-    }
-  }
-
-  
-  
   
   
   
@@ -672,33 +734,129 @@ class _AltBeacon extends State<AltBeacon> {
     );
   }
 
-  Uint8List createAltBeaconSettings(Uint8List Advopcode, String mfgIDHex,
-      String beaconIDHex, String mfgDataHex) {
+  // Uint8List createAltBeaconSettings(Uint8List Advopcode, String mfgIDHex,
+  //     String beaconIDHex, String mfgDataHex) {
+  //   Uint8List mfgIDBytes = hexStringToBytes(mfgIDHex);
+  //   Uint8List beaconIDBytes = hexStringToBytes(beaconIDHex);
+  //   Uint8List mfgDataBytes = hexStringToBytes(mfgDataHex);
+
+  //   if (mfgIDBytes.length != 2) {
+  //     throw Exception(
+  //         "Manufacturer ID must be exactly 2 bytes (4 hex characters)");
+  //   }
+  //   if (beaconIDBytes.length != 20) {
+  //     throw Exception("Beacon ID must be exactly 20 bytes (40 hex characters)");
+  //   }
+  //   if (mfgDataBytes.length != 1) {
+  //     throw Exception("Beacon ID must be exactly 20 bytes (40 hex characters)");
+  //   }
+
+  //   return Uint8List.fromList([
+  //     Advopcode[0],
+  //     ...mfgIDBytes,
+  //     ...beaconIDBytes,
+  //     ...mfgDataBytes,
+  //   ]);
+  // }  
+  
+  // void setAltBeaconPacket(
+  //     String mfgIDHex, String beaconIDHex, mfgDataHex) async {
+  //   Uint8List Advopcode = Uint8List.fromList([0x37]); // AltBeacon opcode
+  //   try {
+  //     BleService selService = widget.beaconTunerService.service;
+  //     BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+
+  //     Uint8List AltBeaconSettings =
+  //         createAltBeaconSettings(Advopcode, mfgIDHex, beaconIDHex, mfgDataHex);
+  //     addLog(
+  //         "Sent",
+  //         AltBeaconSettings.map((b) => b.toRadixString(16).padLeft(2, '0'))
+  //             .join('-'));
+
+  //     // await UniversalBle.writeValue(
+  //     //   widget.deviceId,
+  //     //   selService.uuid,
+  //     //   selChar.uuid,
+  //     //   AltBeaconSettings,
+  //     //   BleOutputProperty.withResponse,
+  //     // );
+  //                                                                         await EmBleOpcodes
+  //                                                           .writeWithResponse(
+  //                                                         deviceId:
+  //                                                             widget.deviceId,
+  //                                                         service: selService,
+  //                                                         characteristic: selChar,
+  //                                                         payload: AltBeaconSettings,
+  //                                                       );
+
+
+  //     print("AltBeacon packet sent: $AltBeaconSettings");
+  //   } catch (e) {
+  //     print("Error writing AltBeacon settings: $e");
+  //   }
+  // }
+
+
+
+void setAltBeaconPacket(
+    String mfgIDHex, String beaconIDHex, String mfgDataHex) async {
+  Uint8List Advopcode = Uint8List.fromList([0x37]); // AltBeacon opcode
+
+  try {
+    BleService selService = widget.beaconTunerService.service;
+    BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+
+    // Convert hex strings to byte arrays
     Uint8List mfgIDBytes = hexStringToBytes(mfgIDHex);
     Uint8List beaconIDBytes = hexStringToBytes(beaconIDHex);
     Uint8List mfgDataBytes = hexStringToBytes(mfgDataHex);
 
+    // Validation
     if (mfgIDBytes.length != 2) {
-      throw Exception(
-          "Manufacturer ID must be exactly 2 bytes (4 hex characters)");
+      throw Exception("Manufacturer ID must be exactly 2 bytes (4 hex characters)");
     }
     if (beaconIDBytes.length != 20) {
       throw Exception("Beacon ID must be exactly 20 bytes (40 hex characters)");
     }
     if (mfgDataBytes.length != 1) {
-      throw Exception("Beacon ID must be exactly 20 bytes (40 hex characters)");
+      throw Exception("Manufacturer Data must be exactly 1 byte (2 hex characters)");
     }
 
-    return Uint8List.fromList([
+    // Serialize full packet
+    Uint8List AltBeaconSettings = EmBleOps.seralize([
       Advopcode[0],
       ...mfgIDBytes,
       ...beaconIDBytes,
       ...mfgDataBytes,
     ]);
-  }
 
-  // Function to convert hex string to Uint8List
-  Uint8List hexStringToBytes(String hex) {
+    addLog(
+      "Sent",
+      AltBeaconSettings.map((b) => b.toRadixString(16).padLeft(2, '0')).join('-'),
+    );
+
+    await EmBleOpcodes.writeWithResponse(
+      deviceId: widget.deviceId,
+      service: selService,
+      characteristic: selChar,
+      payload: AltBeaconSettings,
+    );
+
+    print("AltBeacon packet sent: $AltBeaconSettings");
+  } catch (e) {
+    print("Error writing AltBeacon settings: $e");
+  }
+}
+
+
+
+
+
+    
+    
+    
+    // Function to convert hex string to Uint8List
+    Uint8List hexStringToBytes(String hex) {
     hex = hex.replaceAll(
         RegExp(r'[^0-9A-Fa-f]'), ''); // Remove non-hexadecimal characters
     if (hex.length % 2 != 0) {
@@ -708,34 +866,9 @@ class _AltBeacon extends State<AltBeacon> {
         (i) => int.parse(hex.substring(i * 2, i * 2 + 2), radix: 16)));
   }
 
-  void setAltBeaconPacket(
-      String mfgIDHex, String beaconIDHex, mfgDataHex) async {
-    Uint8List Advopcode = Uint8List.fromList([0x37]); // AltBeacon opcode
-    try {
-      BleService selService = widget.beaconTunerService.service;
-      BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+  
 
-      Uint8List AltBeaconSettings =
-          createAltBeaconSettings(Advopcode, mfgIDHex, beaconIDHex, mfgDataHex);
-      addLog(
-          "Sent",
-          AltBeaconSettings.map((b) => b.toRadixString(16).padLeft(2, '0'))
-              .join('-'));
-
-      await UniversalBle.writeValue(
-        widget.deviceId,
-        selService.uuid,
-        selChar.uuid,
-        AltBeaconSettings,
-        BleOutputProperty.withResponse,
-      );
-
-      print("AltBeacon packet sent: $AltBeaconSettings");
-    } catch (e) {
-      print("Error writing AltBeacon settings: $e");
-    }
-  }
-
+  
   final List<TextInputFormatter> _manufactureridInputFormatters = [
     FilteringTextInputFormatter.allow(RegExp(r'[0-9a-fA-F]')),
     LengthLimitingTextInputFormatter(4),

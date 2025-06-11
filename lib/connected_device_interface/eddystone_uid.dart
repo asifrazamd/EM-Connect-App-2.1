@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:emconnect/connected_device_interface/device_service_globals.dart';
+import 'package:emconnect/connected_device_interface/em_ble_ops.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/universal_ble.dart';
@@ -76,7 +77,8 @@ class _EddystoneUid extends State<EddystoneUid> {
 
     UniversalBle.onValueChange = _handleValueChange;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      //readBeacon();
+      readBeacon();
+      //eddystoneUid();
 
       addgetrow(sharedText);
     });
@@ -104,6 +106,10 @@ class _EddystoneUid extends State<EddystoneUid> {
     await _writeLogToFile(logEntry);
   }
 
+  
+  
+  
+  
   Future<void> _writeLogToFile(String logEntry) async {
     final directory = await getApplicationDocumentsDirectory();
     final logFile = File('${directory.path}/logs.txt');
@@ -336,29 +342,47 @@ class _EddystoneUid extends State<EddystoneUid> {
   }
 
   //Method to read beacon values
-  // Future readBeacon() async {
-  //   Uint8List deviceInfoopcode = Uint8List.fromList([0x32]);
+  Future readBeacon() async {
+    Uint8List deviceInfoopcode = Uint8List.fromList([0x32]);
 
-  //   try {
-  //     BleService selService = widget.beaconTunerService.service;
-  //     BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+    try {
+      BleService selService = widget.beaconTunerService.service;
+      BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
 
-  //     debugPrint("into eddystone uuid get\n");
+      debugPrint("into eddystone uuid get\n");
 
-  //     await UniversalBle.writeValue(
-  //       widget.deviceId,
-  //       selService.uuid,
-  //       selChar.uuid,
-  //       deviceInfoopcode,
-  //       BleOutputProperty.withResponse,
-  //     );
-  //     await Future.delayed(const Duration(milliseconds: 2000));
-  //   } catch (e) {
-  //     print("Error writing advertising settings: $e");
-  //   }
+      await UniversalBle.writeValue(
+        widget.deviceId,
+        selService.uuid,
+        selChar.uuid,
+        deviceInfoopcode,
+        BleOutputProperty.withResponse,
+      );
+      await Future.delayed(const Duration(milliseconds: 2000));
+    } catch (e) {
+      print("Error writing advertising settings: $e");
+    }
+  }
+
+  // Future<void>eddystoneUid() async{
+  // try {
+  //   debugPrint("into eddystone uuid get\n");
+  //   isFetchComplete = false;
+  //   Uint8List deviceInfoopcode= (await EmBleOpcodes.seralize(opcodes: [0x32])) as Uint8List;
+  //   await EmBleOpcodes.writeWithResponse(
+  //     deviceId: widget.deviceId,
+  //     service: widget.beaconTunerService.service,
+  //     characteristic: widget.beaconTunerService.beaconTunerChar,
+  //     payload: deviceInfoopcode,
+  //   );
+  //   debugPrint("Eddystone UID opcode sent");
+  //   //await Future.delayed(const Duration(milliseconds: 2000));
+  // } catch (e) {
+  //   print("Error writing advertising settings: $e");
   // }
 
-  
+  // }
+
   
   
   bool check = false; // Flag to track dialog state
@@ -426,46 +450,99 @@ class _EddystoneUid extends State<EddystoneUid> {
     );
   }
 
-  Uint8List createSubstitutionSettings(Uint8List Advopcode, String hex) {
-    List<int> byteList = [];
+  // Uint8List createSubstitutionSettings(Uint8List Advopcode, String hex) {
+  //   List<int> byteList = [];
 
-    for (int i = 0; i < hex.length; i += 2) {
-      byteList.add(int.parse(hex.substring(i, i + 2), radix: 16));
+  //   for (int i = 0; i < hex.length; i += 2) {
+  //     byteList.add(int.parse(hex.substring(i, i + 2), radix: 16));
+  //   }
+  //   print(byteList);
+  //   return Uint8List.fromList([
+  //     Advopcode[0],
+  //     ...byteList,
+  //   ]);
+  // }
+  
+  // void setSubstitutionPacket(String hexString) async {
+  //   Uint8List opcode = Uint8List.fromList([0x61]);
+
+  //   try {
+  //     BleService selService = widget.beaconTunerService.service;
+  //     BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+
+  //     Uint8List substituitionSettings =
+  //         createSubstitutionSettings(opcode, hexString);
+  //                                                                       await EmBleOpcodes
+  //                                                           .writeWithResponse(
+  //                                                         deviceId:
+  //                                                             widget.deviceId,
+  //                                                         service: selService,
+  //                                                         characteristic: selChar,
+  //                                                         payload: substituitionSettings,
+  //                                                       );
+
+
+  //     // await UniversalBle.writeValue(
+  //     //   widget.deviceId,
+  //     //   selService.uuid,
+  //     //   selChar.uuid,
+  //     //   substituitionSettings,
+  //     //   BleOutputProperty.withResponse,
+  //     // );
+  //     String hex = substituitionSettings
+  //         .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+  //         .join('-');
+  //     print("Substitution packet sent: $hex");
+  //     addLog("Sent", hex);
+  //   } catch (e) {
+  //     print("Error writing substitution settings: $e");
+  //   }
+  // }
+
+  
+  
+  void setSubstitutionPacket(String hexString) async {
+  Uint8List opcode = Uint8List.fromList([0x61]);
+
+  try {
+    BleService selService = widget.beaconTunerService.service;
+    BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+
+    // Convert hex string to byte list
+    List<int> byteList = [];
+    for (int i = 0; i < hexString.length; i += 2) {
+      byteList.add(int.parse(hexString.substring(i, i + 2), radix: 16));
     }
-    print(byteList);
-    return Uint8List.fromList([
-      Advopcode[0],
+
+    // Serialize packet with opcode + hex data
+    Uint8List substitutionSettings = EmBleOps.seralize([
+      opcode[0],
       ...byteList,
     ]);
+
+    await EmBleOps.writeWithResponse(
+      deviceId: widget.deviceId,
+      service: selService,
+      characteristic: selChar,
+      payload: substitutionSettings,
+    );
+
+    String hex = substitutionSettings
+        .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+        .join('-');
+
+    print("Substitution packet sent: $hex");
+    addLog("Sent", hex);
+  } catch (e) {
+    print("Error writing substitution settings: $e");
   }
+}
 
-  void setSubstitutionPacket(String hexString) async {
-    Uint8List opcode = Uint8List.fromList([0x61]);
-
-    try {
-      BleService selService = widget.beaconTunerService.service;
-      BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
-
-      Uint8List substituitionSettings =
-          createSubstitutionSettings(opcode, hexString);
-
-      await UniversalBle.writeValue(
-        widget.deviceId,
-        selService.uuid,
-        selChar.uuid,
-        substituitionSettings,
-        BleOutputProperty.withResponse,
-      );
-      String hex = substituitionSettings
-          .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
-          .join('-');
-      print("Substitution packet sent: $hex");
-      addLog("Sent", hex);
-    } catch (e) {
-      print("Error writing substitution settings: $e");
-    }
-  }
-
+  
+  
+  
+  
+  
   Uint8List createAdvertisingSettings(
       Uint8List opcode, int packetType, interval, int txPowerLevel) {
     if (interval < 20 || interval > 10240) {
@@ -488,6 +565,9 @@ class _EddystoneUid extends State<EddystoneUid> {
     ]);
   }
 
+  
+  
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -980,65 +1060,125 @@ class _EddystoneUid extends State<EddystoneUid> {
     );
   }
 
-  void setEddystoneUid(String namespaceId, String instanceId) async {
-    Uint8List opcode = Uint8List.fromList([0x33]);
-    try {
-      BleService selService = widget.beaconTunerService.service;
-      BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
-      Uint8List eddyBeaconSettings =
-          createEddystoneUidSettings(opcode, namespaceId, instanceId);
+  // void setEddystoneUid(String namespaceId, String instanceId) async {
+  //   Uint8List opcode = Uint8List.fromList([0x33]);
+  //   try {
+  //     BleService selService = widget.beaconTunerService.service;
+  //     BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+  //     Uint8List eddyBeaconSettings =
+  //         createEddystoneUidSettings(opcode, namespaceId, instanceId);
 
-      print("characteristics: ${selChar.uuid}");
-      print("DeviceID: ${widget.deviceId}");
-      print("Advertising Settings: $createEddystoneUidSettings");
-      addLog(
-          "Sent",
-          eddyBeaconSettings
-              .map((b) => b.toRadixString(16).padLeft(2, '0'))
-              .join('-'));
+  //     print("characteristics: ${selChar.uuid}");
+  //     print("DeviceID: ${widget.deviceId}");
+  //     print("Advertising Settings: $createEddystoneUidSettings");
+  //     addLog(
+  //         "Sent",
+  //         eddyBeaconSettings
+  //             .map((b) => b.toRadixString(16).padLeft(2, '0'))
+  //             .join('-'));
 
-      await UniversalBle.writeValue(
-        widget.deviceId,
-        selService.uuid,
-        selChar.uuid,
-        eddyBeaconSettings,
-        BleOutputProperty.withResponse,
-      );
+  //     await UniversalBle.writeValue(
+  //       widget.deviceId,
+  //       selService.uuid,
+  //       selChar.uuid,
+  //       eddyBeaconSettings,
+  //       BleOutputProperty.withResponse,
+  //     );
 
-      setState(() {
-        response = eddyBeaconSettings;
-      });
-      String hex = eddyBeaconSettings
-          .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
-          .join('-');
-      addLog("Sent", hex);
-      print("Eddystone-UID data written to the device: $hex");
-    } catch (e) {
-      print("Error writing advertising settings: $e");
-    }
-  }
+  //     setState(() {
+  //       response = eddyBeaconSettings;
+  //     });
+  //     String hex = eddyBeaconSettings
+  //         .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+  //         .join('-');
+  //     addLog("Sent", hex);
+  //     print("Eddystone-UID data written to the device: $hex");
+  //   } catch (e) {
+  //     print("Error writing advertising settings: $e");
+  //   }
+  // }
 
-  Uint8List createEddystoneUidSettings(
-      Uint8List opcode, String namespaceIDHex, String instanceIDHex) {
-    // Convert hex string to byte array for Namespace ID
-    Uint8List namespaceBytes = hexStringToBytes(namespaceIDHex);
-    Uint8List instanceBytes = hexStringToBytes(instanceIDHex);
+  // Uint8List createEddystoneUidSettings(
+  //     Uint8List opcode, String namespaceIDHex, String instanceIDHex) {
+  //   // Convert hex string to byte array for Namespace ID
+  //   Uint8List namespaceBytes = hexStringToBytes(namespaceIDHex);
+  //   Uint8List instanceBytes = hexStringToBytes(instanceIDHex);
+
+  //   if (namespaceBytes.length != 10) {
+  //     throw Exception(
+  //         "Namespace ID must be exactly 10 bytes (20 hex characters)");
+  //   }
+  //   if (instanceBytes.length != 6) {
+  //     throw Exception(
+  //         "Instance ID must be exactly 6 bytes (12 hex characters)");
+  //   }
+
+  //   return Uint8List.fromList([
+  //     opcode[0],
+  //     ...namespaceBytes,
+  //     ...instanceBytes,
+  //   ]);
+  // }
+void setEddystoneUid(String namespaceId, String instanceId) async {
+  Uint8List opcode = Uint8List.fromList([0x33]);
+
+  try {
+    BleService selService = widget.beaconTunerService.service;
+    BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+
+    // Convert hex strings to byte arrays
+    Uint8List namespaceBytes = hexStringToBytes(namespaceId);
+    Uint8List instanceBytes = hexStringToBytes(instanceId);
 
     if (namespaceBytes.length != 10) {
-      throw Exception(
-          "Namespace ID must be exactly 10 bytes (20 hex characters)");
+      throw Exception("Namespace ID must be exactly 10 bytes (20 hex characters)");
     }
     if (instanceBytes.length != 6) {
-      throw Exception(
-          "Instance ID must be exactly 6 bytes (12 hex characters)");
+      throw Exception("Instance ID must be exactly 6 bytes (12 hex characters)");
     }
 
-    return Uint8List.fromList([
+    // Use the static seralize method
+    Uint8List eddyBeaconSettings = EmBleOps.seralize([
       opcode[0],
       ...namespaceBytes,
       ...instanceBytes,
     ]);
+
+    print("characteristics: ${selChar.uuid}");
+    print("DeviceID: ${widget.deviceId}");
+    addLog(
+      "Sent",
+      eddyBeaconSettings.map((b) => b.toRadixString(16).padLeft(2, '0')).join('-'),
+    );
+    await EmBleOps.writeWithResponse(
+      deviceId: widget.deviceId,
+      service: selService,
+      characteristic: selChar,
+      payload: eddyBeaconSettings,
+    );
+
+    // await UniversalBle.writeValue(
+    //   widget.deviceId,
+    //   selService.uuid,
+    //   selChar.uuid,
+    //   eddyBeaconSettings,
+    //   BleOutputProperty.withResponse,
+    // );
+
+    setState(() {
+      response = eddyBeaconSettings;
+    });
+
+    String hex = eddyBeaconSettings
+        .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+        .join('-');
+    addLog("Sent", hex);
+    print("Eddystone-UID data written to the device: $hex");
+  } catch (e) {
+    print("Error writing advertising settings: $e");
   }
+}
+
 
 // Function to convert hex string to Uint8List
   Uint8List hexStringToBytes(String hex) {

@@ -1,69 +1,41 @@
-import 'dart:io';
 
+import 'package:emconnect/app_globals.dart';
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/universal_ble.dart';
-import 'package:path_provider/path_provider.dart';
 
-class BeaconTunerService {
-  late BleService service;
-  late BleCharacteristic beaconTunerChar;
-}
+class EmBleOps {
+  EmBleOps._();
 
-class FirmwareUpdateService {
-  late BleService service;
-  late BleCharacteristic controlPointChar;
-  late BleCharacteristic dataChar;
-}
+  // static Future<List<Uint8List>> seralize({
+  //   List<int>? opcodes,
+  //   List<Uint8List>? payloads,
+  // }) async {
+  //   if ((opcodes == null && payloads == null) ||
+  //       (opcodes != null && payloads != null)) {
+  //     throw ArgumentError(
+  //         'Exactly one of opcodes or payloads must be provided.');
+  //   }
 
-final List<String> _logs = [];
-void addLog(String type, dynamic data) async {
-  // Get the current timestamp and manually format it as YYYY-MM-DD HH:mm:ss
-  DateTime now = DateTime.now();
-  String timestamp =
-      "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
+  //   // Prepare list of Uint8List payloads to send
+  //   final List<Uint8List> commands = [];
 
-  // Log entry with just the formatted timestamp
-  String logEntry = '[$timestamp]:$type: ${data.toString()}\n';
+  //   if (opcodes != null) {
+  //     for (final opcode in opcodes) {
+  //       commands.add(Uint8List.fromList([opcode]));
+  //     }
+  //   } else if (payloads != null) {
+  //     commands.addAll(payloads);
+  //   }
 
-  _logs.add(logEntry);
+  //   return commands;
+  // }
 
-  await _writeLogToFile(logEntry);
-}
-
-Future<void> _writeLogToFile(String logEntry) async {
-  final directory = await getApplicationDocumentsDirectory();
-  final logFile = File('${directory.path}/logs.txt');
-  await logFile.writeAsString(logEntry, mode: FileMode.append);
-}
-
-class EmBleOpcodes {
-  EmBleOpcodes._();
-
-  static Future<List<Uint8List>> seralize({
-    List<int>? opcodes,
-    List<Uint8List>? payloads,
-  }) async {
-    if ((opcodes == null && payloads == null) ||
-        (opcodes != null && payloads != null)) {
-      throw ArgumentError(
-          'Exactly one of opcodes or payloads must be provided.');
-    }
-
-    // Prepare list of Uint8List payloads to send
-    final List<Uint8List> commands = [];
-
-    if (opcodes != null) {
-      for (final opcode in opcodes) {
-        commands.add(Uint8List.fromList([opcode]));
-      }
-    } else if (payloads != null) {
-      commands.addAll(payloads);
-    }
-
-    return commands;
+    static Uint8List seralize(List<dynamic> params) {
+    return Uint8List.fromList([
+      ...params,
+    ]);
   }
 
-  
   
   
   

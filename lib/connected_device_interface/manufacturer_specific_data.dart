@@ -7,6 +7,7 @@ import 'package:universal_ble/universal_ble.dart';
 import 'package:collection/collection.dart';
 import 'package:emconnect/app_globals.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:emconnect/connected_device_interface/em_ble_ops.dart';
 
 Uint8List? response;
 String manufacturerId = "";
@@ -886,104 +887,225 @@ class _ManufacturerSpecificData extends State<ManufacturerSpecificData> {
     );
   }
 
-  Uint8List createSubstitutionSettings(Uint8List Advopcode, String hex) {
-    List<int> byteList = [];
+  // Uint8List createSubstitutionSettings(Uint8List Advopcode, String hex) {
+  //   List<int> byteList = [];
 
-    for (int i = 0; i < hex.length; i += 2) {
-      byteList.add(int.parse(hex.substring(i, i + 2), radix: 16));
+  //   for (int i = 0; i < hex.length; i += 2) {
+  //     byteList.add(int.parse(hex.substring(i, i + 2), radix: 16));
+  //   }
+  //   print(byteList);
+  //   return Uint8List.fromList([
+  //     Advopcode[0],
+  //     ...byteList,
+  //   ]);
+  // }
+
+  // void setSubstitutionPacket(String hexString) async {
+  //   Uint8List Advopcode = Uint8List.fromList([0x61]);
+
+  //   try {
+  //     BleService selService = widget.beaconTunerService.service;
+  //     BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+
+  //     Uint8List SubstituitionSettings =
+  //         createSubstitutionSettings(Advopcode, hexString);
+  //                                                                                   await EmBleOpcodes
+  //                                                           .writeWithResponse(
+  //                                                         deviceId:
+  //                                                             widget.deviceId,
+  //                                                         service: selService,
+  //                                                         characteristic: selChar,
+  //                                                         payload: SubstituitionSettings,
+  //                                                       );
+
+
+  //     // await UniversalBle.writeValue(
+  //     //   widget.deviceId,
+  //     //   selService.uuid,
+  //     //   selChar.uuid,
+  //     //   SubstituitionSettings,
+  //     //   BleOutputProperty.withResponse,
+  //     // );
+
+  //     print("Substitution packet sent: $SubstituitionSettings");
+  //   } catch (e) {
+  //     print("Error writing substitution settings: $e");
+  //   }
+  // }
+
+  
+  
+  
+  
+  
+  
+  
+  // Uint8List createManufacturerSpecificDataPacket(
+  //     Uint8List Advopcode, String manufacturerIdHex, String userDataHex) {
+  //   // Convert hex string to byte array
+  //   Uint8List manufacturerIdBytes = hexStringToBytes(manufacturerIdHex);
+  //   Uint8List userDataBytes = hexStringToBytes(userDataHex);
+
+  //   // Ensure the Manufacturer ID is exactly 2 bytes
+  //   if (manufacturerIdBytes.length != 2) {
+  //     throw Exception(
+  //         "Manufacturer ID must be exactly 2 bytes (4 hex characters).");
+  //   }
+
+  //   // Ensure the User Data is between 1 and 24 bytes
+  //   if (userDataBytes.isEmpty || userDataBytes.length > 24) {
+  //     throw Exception("User Data must be 1-24 bytes (2-48 hex characters).");
+  //   }
+
+  //   return Uint8List.fromList([
+  //     Advopcode[0],
+  //     ...manufacturerIdBytes,
+  //     ...userDataBytes,
+  //   ]);
+  // }
+
+  // void SetManufacturerSpecificData(
+  //     String manufacturerId, String userData) async {
+  //   Uint8List Advopcode = Uint8List.fromList([0x39]);
+
+  //   try {
+  //     BleService selService = widget.beaconTunerService.service;
+  //     BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+  //     Uint8List mfgDataPacket = createManufacturerSpecificDataPacket(
+  //         Advopcode, manufacturerId, userData);
+
+  //     print("characteristics: ${selChar.uuid}");
+  //     print("DeviceID: ${widget.deviceId}");
+  //     print("Manufacturer Specific Data Packet: $mfgDataPacket");
+  //     addLog(
+  //         "Sent",
+  //         mfgDataPacket
+  //             .map((b) => b.toRadixString(16).padLeft(2, '0'))
+  //             .join('-'));
+
+  //     // await UniversalBle.writeValue(
+  //     //   widget.deviceId,
+  //     //   selService.uuid,
+  //     //   selChar.uuid,
+  //     //   mfgDataPacket,
+  //     //   BleOutputProperty.withResponse,
+  //     // );
+
+  //     await EmBleOps.writeWithResponse(
+  //       deviceId: widget.deviceId,
+  //       service: selService,
+  //       characteristic: selChar,
+  //       payload: mfgDataPacket,
+  //     );
+
+  //     setState(() {
+  //       response = mfgDataPacket;
+  //     });
+
+  //     print("Successfully written Manufacturer Specific Data Packet.");
+  //   } catch (e) {
+  //     print("Error writing Manufacturer Specific Data Packet: $e");
+  //   }
+  // }
+
+  
+  
+  void setSubstitutionPacket(String hexString) async {
+  Uint8List Advopcode = Uint8List.fromList([0x61]);
+
+  try {
+    BleService selService = widget.beaconTunerService.service;
+    BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+
+    // Convert hex string to byte list
+    List<int> byteList = [];
+    for (int i = 0; i < hexString.length; i += 2) {
+      byteList.add(int.parse(hexString.substring(i, i + 2), radix: 16));
     }
-    print(byteList);
-    return Uint8List.fromList([
+
+    // Serialize packet using opcode and byte data
+    Uint8List substitutionSettings = EmBleOps.seralize([
       Advopcode[0],
       ...byteList,
     ]);
+
+    await EmBleOpcodes.writeWithResponse(
+      deviceId: widget.deviceId,
+      service: selService,
+      characteristic: selChar,
+      payload: substitutionSettings,
+    );
+
+    print("Substitution packet sent: $substitutionSettings");
+  } catch (e) {
+    print("Error writing substitution settings: $e");
   }
+}
 
-  void setSubstitutionPacket(String hexString) async {
-    Uint8List Advopcode = Uint8List.fromList([0x61]);
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  void SetManufacturerSpecificData(String manufacturerId, String userData) async {
+  Uint8List Advopcode = Uint8List.fromList([0x39]);
 
-    try {
-      BleService selService = widget.beaconTunerService.service;
-      BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+  try {
+    BleService selService = widget.beaconTunerService.service;
+    BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
 
-      Uint8List SubstituitionSettings =
-          createSubstitutionSettings(Advopcode, hexString);
+    // Convert hex strings to byte arrays
+    Uint8List manufacturerIdBytes = hexStringToBytes(manufacturerId);
+    Uint8List userDataBytes = hexStringToBytes(userData);
 
-      await UniversalBle.writeValue(
-        widget.deviceId,
-        selService.uuid,
-        selChar.uuid,
-        SubstituitionSettings,
-        BleOutputProperty.withResponse,
-      );
-
-      print("Substitution packet sent: $SubstituitionSettings");
-    } catch (e) {
-      print("Error writing substitution settings: $e");
-    }
-  }
-
-  Uint8List createManufacturerSpecificDataPacket(
-      Uint8List Advopcode, String manufacturerIdHex, String userDataHex) {
-    // Convert hex string to byte array
-    Uint8List manufacturerIdBytes = hexStringToBytes(manufacturerIdHex);
-    Uint8List userDataBytes = hexStringToBytes(userDataHex);
-
-    // Ensure the Manufacturer ID is exactly 2 bytes
+    // Validation
     if (manufacturerIdBytes.length != 2) {
-      throw Exception(
-          "Manufacturer ID must be exactly 2 bytes (4 hex characters).");
+      throw Exception("Manufacturer ID must be exactly 2 bytes (4 hex characters).");
     }
 
-    // Ensure the User Data is between 1 and 24 bytes
     if (userDataBytes.isEmpty || userDataBytes.length > 24) {
-      throw Exception("User Data must be 1-24 bytes (2-48 hex characters).");
+      throw Exception("User Data must be between 1 and 24 bytes (2-48 hex characters).");
     }
 
-    return Uint8List.fromList([
+    // Combine into packet
+    Uint8List mfgDataPacket = EmBleOps.seralize([
       Advopcode[0],
       ...manufacturerIdBytes,
       ...userDataBytes,
     ]);
+
+    print("Characteristics UUID: ${selChar.uuid}");
+    print("Device ID: ${widget.deviceId}");
+    print("Manufacturer Specific Data Packet: $mfgDataPacket");
+
+    addLog(
+      "Sent",
+      mfgDataPacket.map((b) => b.toRadixString(16).padLeft(2, '0')).join('-'),
+    );
+
+    await EmBleOps.writeWithResponse(
+      deviceId: widget.deviceId,
+      service: selService,
+      characteristic: selChar,
+      payload: mfgDataPacket,
+    );
+
+    setState(() {
+      response = mfgDataPacket;
+    });
+
+    print("Successfully written Manufacturer Specific Data Packet.");
+  } catch (e) {
+    print("Error writing Manufacturer Specific Data Packet: $e");
   }
+}
 
-  void SetManufacturerSpecificData(
-      String manufacturerId, String userData) async {
-    Uint8List Advopcode = Uint8List.fromList([0x39]);
-
-    try {
-      BleService selService = widget.beaconTunerService.service;
-      BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
-      Uint8List mfgDataPacket = createManufacturerSpecificDataPacket(
-          Advopcode, manufacturerId, userData);
-
-      print("characteristics: ${selChar.uuid}");
-      print("DeviceID: ${widget.deviceId}");
-      print("Manufacturer Specific Data Packet: $mfgDataPacket");
-      addLog(
-          "Sent",
-          mfgDataPacket
-              .map((b) => b.toRadixString(16).padLeft(2, '0'))
-              .join('-'));
-
-      await UniversalBle.writeValue(
-        widget.deviceId,
-        selService.uuid,
-        selChar.uuid,
-        mfgDataPacket,
-        BleOutputProperty.withResponse,
-      );
-
-      setState(() {
-        response = mfgDataPacket;
-      });
-
-      print("Successfully written Manufacturer Specific Data Packet.");
-    } catch (e) {
-      print("Error writing Manufacturer Specific Data Packet: $e");
-    }
-  }
-
+  
+  
   // Function to convert hex string to Uint8List
   Uint8List hexStringToBytes(String hex) {
     hex = hex.replaceAll(

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:emconnect/connected_device_interface/fwu_firmware_info_page.dart';
 import 'package:emconnect/app_globals.dart';
-import 'package:emconnect/connected_device_interface/device_service_globals.dart';
+import 'package:emconnect/connected_device_interface/device_service_globals.dart' hide addLog;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
@@ -109,6 +109,9 @@ class _LeDeviceServices extends State<LeDeviceServices> {
         firmwareUpdateService.service = service;
         firmwareUpdateService.controlPointChar = service.characteristics[0];
         firmwareUpdateService.dataChar = service.characteristics[1];
+        if (service.characteristics.length == 2) {
+          firmwareUpdateService.dataChar = service.characteristics[1];
+        }
         await subscribeFirmwareUpdateChar();
       }
     }

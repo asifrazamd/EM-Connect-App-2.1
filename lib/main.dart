@@ -6,7 +6,7 @@ import 'package:emconnect/dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-      await BLECharacteristicHelper.loadCharacteristicsFromYaml(); // Load once
+      //await BLECharacteristicHelper.loadCharacteristicsFromYaml(); // Load once
 
 
   runApp(

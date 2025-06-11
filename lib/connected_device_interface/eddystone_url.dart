@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:emconnect/connected_device_interface/device_service_globals.dart';
+import 'package:emconnect/connected_device_interface/em_ble_ops.dart';
 import 'package:emconnect/data/uicolors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -358,31 +359,134 @@ class _EddystoneUrl extends State<EddystoneUrl> {
     );
   }
 
-  Uint8List createEddystoneUrlPacket(
-      Uint8List opcode, int prefix, String url, int? suffix) {
-    // Convert the URL (hexadecimal string) to a byte array
-    List<int> urlBytes = _hexStringToBytes(url);
-    List<int> extraBytesArray = [];
-    debugPrint("urlBytes:${urlBytes.length}");
+  // Uint8List createEddystoneUrlPacket(
+  //     Uint8List opcode, int prefix, String url, int? suffix) {
+  //   // Convert the URL (hexadecimal string) to a byte array
+  //   List<int> urlBytes = _hexStringToBytes(url);
+  //   List<int> extraBytesArray = [];
+  //   debugPrint("urlBytes:${urlBytes.length}");
 
-    // If a suffix is provided (not null), append it to the URL bytes
+  //   // If a suffix is provided (not null), append it to the URL bytes
+  //   if (suffix != null) {
+  //     urlBytes.add(suffix);
+  //   }
+  //   if (urlBytes.length < 17) {
+  //     while (urlBytes.length < 17) {
+  //       urlBytes.add(0x20);
+  //     }
+  //   }
+
+  //   // Construct the Eddystone-URL packet
+  //   return Uint8List.fromList([
+  //     opcode[0],
+  //     prefix,
+  //     ...urlBytes,
+  //     ...extraBytesArray,
+  //   ]);
+  // }
+
+  //   void setEddystoneURLPacket(
+  //   int prefix,
+  //   String encodedUrlHex,
+  //   int? suffix,
+  // ) async {
+  //   Uint8List opcode = Uint8List.fromList([0x35]);
+
+  //   try {
+  //     BleService selService = widget.beaconTunerService.service;
+  //     BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+
+  //     // Create Eddystone URL Settings
+  //     Uint8List eddyBeaconSettings =
+  //         createEddystoneUrlPacket(opcode, prefix, encodedUrlHex, suffix);
+
+  //     print("Characteristics UUID: ${selChar.uuid}");
+  //     print("Device ID: ${widget.deviceId}");
+  //     print("Advertising Settings: $eddyBeaconSettings");
+  //     addLog(
+  //         "Sent",
+  //         eddyBeaconSettings
+  //             .map((b) => b.toRadixString(16).padLeft(2, '0'))
+  //             .join('-'));
+  //     // await UniversalBle.writeValue(
+  //     //   widget.deviceId,
+  //     //   selService.uuid,
+  //     //   selChar.uuid,
+  //     //   eddyBeaconSettings,
+  //     //   BleOutputProperty.withResponse,
+  //     // );
+
+  //                                                                   await EmBleOpcodes
+  //                                                           .writeWithResponse(
+  //                                                         deviceId:
+  //                                                             widget.deviceId,
+  //                                                         service: selService,
+  //                                                         characteristic: selChar,
+  //                                                         payload: eddyBeaconSettings,
+  //                                                       );
+
+
+  //     setState(() {});
+
+  //     print("Eddystone-URL data written to the device: $eddyBeaconSettings");
+  //   } catch (e) {
+  //     print("Error writing advertising settings: $e");
+  //   }
+  // }
+void setEddystoneURLPacket(
+  int prefix,
+  String encodedUrlHex,
+  int? suffix,
+) async {
+  Uint8List opcode = Uint8List.fromList([0x35]);
+
+  try {
+    BleService selService = widget.beaconTunerService.service;
+    BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+
+    // Convert the URL hex string to bytes
+    List<int> urlBytes = _hexStringToBytes(encodedUrlHex);
+    debugPrint("urlBytes: ${urlBytes.length}");
+
+    // Append suffix if provided
     if (suffix != null) {
       urlBytes.add(suffix);
     }
-    if (urlBytes.length < 17) {
-      while (urlBytes.length < 17) {
-        urlBytes.add(0x20);
-      }
+
+    // Pad with 0x20 (space) to ensure at least 17 bytes
+    while (urlBytes.length < 17) {
+      urlBytes.add(0x20);
     }
 
-    // Construct the Eddystone-URL packet
-    return Uint8List.fromList([
+    // Serialize full payload
+    Uint8List eddyBeaconSettings = EmBleOps.seralize([
       opcode[0],
       prefix,
       ...urlBytes,
-      ...extraBytesArray,
     ]);
+
+    print("Characteristics UUID: ${selChar.uuid}");
+    print("Device ID: ${widget.deviceId}");
+    addLog(
+      "Sent",
+      eddyBeaconSettings.map((b) => b.toRadixString(16).padLeft(2, '0')).join('-'),
+    );
+
+    await EmBleOpcodes.writeWithResponse(
+      deviceId: widget.deviceId,
+      service: selService,
+      characteristic: selChar,
+      payload: eddyBeaconSettings,
+    );
+
+    setState(() {});
+    print("Eddystone-URL data written to the device: $eddyBeaconSettings");
+  } catch (e) {
+    print("Error writing advertising settings: $e");
   }
+}
+
+
 
 // Method to convert a hex string to bytes
   List<int> _hexStringToBytes(String hex) {
@@ -395,44 +499,8 @@ class _EddystoneUrl extends State<EddystoneUrl> {
     return bytes;
   }
 
-  void setEddystoneURLPacket(
-    int prefix,
-    String encodedUrlHex,
-    int? suffix,
-  ) async {
-    Uint8List opcode = Uint8List.fromList([0x35]);
 
-    try {
-      BleService selService = widget.beaconTunerService.service;
-      BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
 
-      // Create Eddystone URL Settings
-      Uint8List eddyBeaconSettings =
-          createEddystoneUrlPacket(opcode, prefix, encodedUrlHex, suffix);
-
-      print("Characteristics UUID: ${selChar.uuid}");
-      print("Device ID: ${widget.deviceId}");
-      print("Advertising Settings: $eddyBeaconSettings");
-      addLog(
-          "Sent",
-          eddyBeaconSettings
-              .map((b) => b.toRadixString(16).padLeft(2, '0'))
-              .join('-'));
-      await UniversalBle.writeValue(
-        widget.deviceId,
-        selService.uuid,
-        selChar.uuid,
-        eddyBeaconSettings,
-        BleOutputProperty.withResponse,
-      );
-
-      setState(() {});
-
-      print("Eddystone-URL data written to the device: $eddyBeaconSettings");
-    } catch (e) {
-      print("Error writing advertising settings: $e");
-    }
-  }
 }
 
 class _URLTextFormatter extends TextInputFormatter {

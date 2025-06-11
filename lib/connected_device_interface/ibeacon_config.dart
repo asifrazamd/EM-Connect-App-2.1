@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:emconnect/connected_device_interface/em_ble_ops.dart';
 
 // bool IBeaconConfig = true;
 String uuid = '';
@@ -42,6 +43,7 @@ class _IBeaconConfig extends State<IBeaconConfig> {
     UniversalBle.onValueChange = _handleValueChange;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       readIBeaconConfig();
+      //ibeacon();
     });
   }
 
@@ -114,44 +116,44 @@ class _IBeaconConfig extends State<IBeaconConfig> {
   }
 
 //Method to read beacon values
-  // Future readIBeaconConfig() async {
-  //   Uint8List deviceInfoopcode = Uint8List.fromList([0x30]);
+  Future readIBeaconConfig() async {
+    Uint8List deviceInfoopcode = Uint8List.fromList([0x30]);
 
+    try {
+      BleService selService = widget.beaconTunerService.service;
+      BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+
+      debugPrint("into IBeaconConfig get\n");
+
+      await UniversalBle.writeValue(
+        widget.deviceId,
+        selService.uuid,
+        selChar.uuid,
+        deviceInfoopcode,
+        BleOutputProperty.withResponse,
+      );
+      await Future.delayed(const Duration(milliseconds: 2000));
+    } catch (e) {
+      print("Error writing advertising settings: $e");
+    }
+  }
+
+
+  
+  
+  // Future<void> ibeacon() async {
+  //   Uint8List deviceInfoOpcode;
   //   try {
-  //     BleService selService = widget.beaconTunerService.service;
-  //     BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+  //     isFetchComplete = false;
 
-  //     debugPrint("into IBeaconConfig get\n");
-
-  //     await UniversalBle.writeValue(
-  //       widget.deviceId,
-  //       selService.uuid,
-  //       selChar.uuid,
-  //       deviceInfoopcode,
-  //       BleOutputProperty.withResponse,
-  //     );
+  //     deviceInfoOpcode = (await EmBleOpcodes.seralize(opcodes: [0x30]))[0];
   //     await Future.delayed(const Duration(milliseconds: 2000));
   //   } catch (e) {
   //     print("Error writing advertising settings: $e");
   //   }
   // }
 
-    
-    
-    
-    Future readIBeaconConfig() async {
-  try {
-    await EmBleOps.serialize(
-      deviceId: widget.deviceId,
-      service: widget.beaconTunerService.service,
-      characteristic: widget.beaconTunerService.beaconTunerChar,
-      opcodes: [0x30],
-    );
-  } catch (e) {
-    print("Error in readIBeaconConfig: $e");
-  }
-}
-
+  
   
   
   
@@ -194,60 +196,130 @@ class _IBeaconConfig extends State<IBeaconConfig> {
     LengthLimitingTextInputFormatter(5),
     _MINORIDTextFormatter(),
   ];
-  Uint8List createIBeaconConfigSettings(
-      Uint8List Advopcode, String uuid, int majorId, int minorId) {
-    // Remove hyphens from the UUID
-    String cleanUuid = uuid.replaceAll('-', '');
 
-    // Convert the clean UUID string to a Uint8List
-    Uint8List uuidBytes = Uint8List.fromList(List.generate(16, (i) {
-      return int.parse(cleanUuid.substring(i * 2, i * 2 + 2), radix: 16);
-    }));
+  // Uint8List createIBeaconConfigSettings(
+  //     Uint8List Advopcode, String uuid, int majorId, int minorId) {
+  //   // Remove hyphens from the UUID
+  //   String cleanUuid = uuid.replaceAll('-', '');
 
-    return Uint8List.fromList([
-      Advopcode[0],
-      ...uuidBytes, // Spread the uuidBytes
-      (majorId >> 8) & 0xFF, // Major ID high byte
-      majorId & 0xFF, // Major ID low byte
-      (minorId >> 8) & 0xFF, // Minor ID high byte
-      minorId & 0xFF, // Minor ID low byte
-    ]);
-  }
+  //   // Convert the clean UUID string to a Uint8List
+  //   Uint8List uuidBytes = Uint8List.fromList(List.generate(16, (i) {
+  //     return int.parse(cleanUuid.substring(i * 2, i * 2 + 2), radix: 16);
+  //   }));
+
+  //   return Uint8List.fromList([
+  //     Advopcode[0],
+  //     ...uuidBytes, // Spread the uuidBytes
+  //     (majorId >> 8) & 0xFF, // Major ID high byte
+  //     majorId & 0xFF, // Major ID low byte
+  //     (minorId >> 8) & 0xFF, // Minor ID high byte
+  //     minorId & 0xFF, // Minor ID low byte
+  //   ]);
+  // }
+
 
   void setIBeaconConfigPacket(String uuid, int majorId, int minorId) async {
-    Uint8List Advopcode = Uint8List.fromList([0x31]);
-    // Uint8List? response;
+    Uint8List Advopcode = Uint8List.fromList([0x31]); // iBeacon opcode
+
     try {
       BleService selService = widget.beaconTunerService.service;
       BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
-      Uint8List IBeaconConfigSettings =
-          createIBeaconConfigSettings(Advopcode, uuid, majorId, minorId);
+
+      // Clean UUID by removing hyphens
+      String cleanUuid = uuid.replaceAll('-', '');
+
+      // Convert cleaned UUID to bytes
+      Uint8List uuidBytes = Uint8List.fromList(List.generate(16, (i) {
+        return int.parse(cleanUuid.substring(i * 2, i * 2 + 2), radix: 16);
+      }));
+
+      // Construct payload using test method
+      // Uint8List IBeaconConfigSettings = test([
+      //   Advopcode[0],
+      //   ...uuidBytes,
+      //   (majorId >> 8) & 0xFF,
+      //   majorId & 0xFF,
+      //   (minorId >> 8) & 0xFF,
+      //   minorId & 0xFF,
+      // ]);
+      Uint8List IBeaconConfigSettings = EmBleOps.seralize(
+        [
+          Advopcode[0],
+          ...uuidBytes,
+          (majorId >> 8) & 0xFF,
+          majorId & 0xFF,
+          (minorId >> 8) & 0xFF,
+          minorId & 0xFF
+        ],
+      );
 
       print("characteristics: ${selChar.uuid}");
       print("DeviceID: ${widget.deviceId}");
-      print("Advertising Settings: $createIBeaconConfigSettings");
       addLog(
-          "Sent",
-          IBeaconConfigSettings.map((b) => b.toRadixString(16).padLeft(2, '0'))
-              .join('-'));
-      await UniversalBle.writeValue(
-        widget.deviceId,
-        selService.uuid,
-        selChar.uuid,
-        IBeaconConfigSettings,
-        BleOutputProperty.withResponse,
+        "Sent",
+        IBeaconConfigSettings.map((b) => b.toRadixString(16).padLeft(2, '0'))
+            .join('-'),
+      );
+
+      await EmBleOpcodes.writeWithResponse(
+        deviceId: widget.deviceId,
+        service: selService,
+        characteristic: selChar,
+        payload: IBeaconConfigSettings,
       );
 
       setState(() {
         response = IBeaconConfigSettings;
       });
 
-      print(
-          "IBeaconConfig data written to the device: $IBeaconConfigSettings");
+      print("IBeaconConfig data written to the device: $IBeaconConfigSettings");
     } catch (e) {
       print("Error writing advertising settings: $e");
     }
   }
+
+  // void setIBeaconConfigPacket(String uuid, int majorId, int minorId) async {
+  //   Uint8List Advopcode = Uint8List.fromList([0x31]);
+  //   // Uint8List? response;
+  //   try {
+  //     BleService selService = widget.beaconTunerService.service;
+  //     BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
+  //     Uint8List IBeaconConfigSettings =
+  //         createIBeaconConfigSettings(Advopcode, uuid, majorId, minorId);
+
+  //     print("characteristics: ${selChar.uuid}");
+  //     print("DeviceID: ${widget.deviceId}");
+  //     print("Advertising Settings: $createIBeaconConfigSettings");
+  //     addLog(
+  //         "Sent",
+  //         IBeaconConfigSettings.map((b) => b.toRadixString(16).padLeft(2, '0'))
+  //             .join('-'));
+  //     // await UniversalBle.writeValue(
+  //     //   widget.deviceId,
+  //     //   selService.uuid,
+  //     //   selChar.uuid,
+  //     //   IBeaconConfigSettings,
+  //     //   BleOutputProperty.withResponse,
+  //     // );
+  //                                                             await EmBleOpcodes
+  //                                                           .writeWithResponse(
+  //                                                         deviceId:
+  //                                                             widget.deviceId,
+  //                                                         service: selService,
+  //                                                         characteristic: selChar,
+  //                                                         payload: IBeaconConfigSettings,
+  //                                                       );
+
+  //     setState(() {
+  //       response = IBeaconConfigSettings;
+  //     });
+
+  //     print(
+  //         "IBeaconConfig data written to the device: $IBeaconConfigSettings");
+  //   } catch (e) {
+  //     print("Error writing advertising settings: $e");
+  //   }
+  // }
 
 // Function to convert hex string to Uint8List
   Uint8List hexStringToBytes(String hex) {

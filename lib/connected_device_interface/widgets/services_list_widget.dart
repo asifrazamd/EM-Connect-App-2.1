@@ -3,12 +3,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
-import 'package:emconnect/data/uicolors.dart';
 import 'package:emconnect/char.dart';
 import 'package:emconnect/logs.dart' show Logs, addLog;
 import 'package:emconnect/connected_device_interface/device_service_globals.dart';
-import 'package:emconnect/connected_device_interface/le_device_services.dart';
-import 'package:emconnect/app_globals.dart';
 import 'package:emconnect/write_dialog.dart';
 
 //import 'package:emconnect/connected_device_interface/widgets/le_device_services.dart';
@@ -64,125 +61,30 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
     'write': Icons.upload,
   };
 
-  Future<void> subscribeToCharacteristic() async {
-    BleInputProperty bleInputProperty;
-    List<CharacteristicProperty> properties =
-        beaconTunerService!.beaconTunerChar.properties;
-
-    if (properties.contains(CharacteristicProperty.notify)) {
-      bleInputProperty = BleInputProperty.notification;
-    } else if (properties.contains(CharacteristicProperty.indicate)) {
-      bleInputProperty = BleInputProperty.indication;
-    } else {
-      throw 'No notify or indicate property';
-    }
-
-    await UniversalBle.setNotifiable(
-      widget.deviceId,
-      beaconTunerService!.service.uuid,
-      beaconTunerService!.beaconTunerChar.uuid,
-      bleInputProperty,
-    );
-    setState(() {});
-  }
-
   bool isSubscribed(String serviceUuid, String charUuid) {
     final key = _getCharacteristicKey(serviceUuid, charUuid);
     return _characteristicSubscriptions[key] ?? false;
   }
 
-  void toggleSubscription(String serviceUuid, String charUuid) async {
-    final key = _getCharacteristicKey(serviceUuid, charUuid);
-    final isCurrentlySubscribed = _characteristicSubscriptions[key] ?? false;
+  // void toggleSubscription(String serviceUuid, String charUuid) async {
+  //   final key = _getCharacteristicKey(serviceUuid, charUuid);
+  //   final isCurrentlySubscribed = _characteristicSubscriptions[key] ?? false;
 
+  //   debugPrint(
+  //       "toggleSubscription: $key, currently subscribed: $isCurrentlySubscribed");
 
-    if (isCurrentlySubscribed) {
-      await unsubscribeAssignedCharacteristic();
-    } else {
-      await subscribeToCharacteristic();
-    }
+  //   if (isCurrentlySubscribed) {
+  //   } else {}
 
-    setState(() {
-      _characteristicSubscriptions[key] = !isCurrentlySubscribed;
-      debugPrint("new subsribition:${_characteristicSubscriptions[key]}");
-    });
-  }
+  //   setState(() {
+  //     _characteristicSubscriptions[key] = !isCurrentlySubscribed;
+  //   });
+  // }
 
   
   
   
-  Future<void> _readValue(
-    String deviceId,
-  ) async {
-    var services = await UniversalBle.discoverServices(widget.deviceId);
-
-    for (var service in services) {
-      debugPrint("service: $service");
-      debugPrint("services12: $services");
-      for (var characteristic in service.characteristics) {
-        debugPrint("characteristic: $characteristic");
-        debugPrint("characteristic.uuid: ${characteristic.uuid}");
-        // debugPrint("characteristicUuid: $characteristicUuid");
-        // if (characteristic.uuid != characteristicUuid) continue;
-        beaconTunerService = BeaconTunerService();
-        beaconTunerService!.service = service;
-        beaconTunerService!.beaconTunerChar = characteristic;
-
-        if (!characteristic.properties
-            .map((e) => e.toString())
-            .contains('read')) {
-          debugPrint("Characteristic ${characteristic.uuid} is not readable.");
-          continue;
-        }
-
-        try {
-          Uint8List value = await UniversalBle.readValue(
-            deviceId,
-            beaconTunerService!.service.uuid,
-            beaconTunerService!.beaconTunerChar.uuid,
-          );
-          debugPrint("values: $value");
-
-          // Prepare hex
-          String hexValue =
-              value.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
-          debugPrint("hexValue: $hexValue");
-
-          // Check if it's all zero
-          bool isZero = value.isNotEmpty && value.every((b) => b == 0);
-
-          // Try decoding to string
-          String decodedValue = '';
-          bool isValidString = true;
-          try {
-            decodedValue = utf8.decode(value);
-            debugPrint("decodedValue: $decodedValue");
-            if (decodedValue.trim().isEmpty) isValidString = false;
-          } catch (_) {
-            isValidString = false;
-          }
-
-          final displayValue = isZero
-              ? "0"
-              : isValidString
-                  ? decodedValue
-                  : hexValue;
-
-          debugPrint("displayValue: $displayValue");
-
-          setState(() {
-            _characteristicValues[characteristic.uuid] = displayValue;
-          });
-        } catch (e) {
-          debugPrint('Error reading ${characteristic.uuid}: $e');
-          setState(() {
-            _characteristicValues[characteristic.uuid] = "0";
-          });
-        }
-      }
-    }
-  }
-
+  
   Future<void> assignServiceAndCharacteristic({
     required String targetServiceUuid,
     required String targetCharacteristicUuid,
@@ -206,9 +108,6 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
         beaconTunerService!.service = service;
         beaconTunerService!.beaconTunerChar = characteristic;
 
-        debugPrint("Assigned service: ${beaconTunerService!.service.uuid}");
-        debugPrint(
-            "Assigned characteristic: ${beaconTunerService!.beaconTunerChar.uuid}");
         return;
       }
     }
@@ -216,89 +115,6 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
     debugPrint("Target service/characteristic not found!");
   }
 
-  Future<void> unsubscribeAssignedCharacteristic() async {
-    List<CharacteristicProperty> properties =
-        beaconTunerService!.beaconTunerChar.properties;
-
-    BleInputProperty bleInputProperty;
-    if (properties.contains(CharacteristicProperty.notify)) {
-      bleInputProperty = BleInputProperty.notification;
-    } else if (properties.contains(CharacteristicProperty.indicate)) {
-      bleInputProperty = BleInputProperty.indication;
-    } else {
-      throw 'No notify or indicate property on characteristic';
-    }
-
-    await UniversalBle.setNotifiable(
-      widget.deviceId,
-      beaconTunerService!.service.uuid,
-      beaconTunerService!.beaconTunerChar.uuid,
-      // Pass null or a way to disable notification, here false disables it
-      BleInputProperty.disabled,
-    );
-    setState(() {});
-  }
-
-  
-  
-  
-  Future<void> readAssignedCharacteristicValue() async {
-    if (beaconTunerService == null) {
-      debugPrint(
-          "Error: beaconTunerService or characteristic is not assigned.");
-      return;
-    }
-
-    try {
-      Uint8List value = await UniversalBle.readValue(
-        widget.deviceId,
-        beaconTunerService!.service.uuid,
-        beaconTunerService!.beaconTunerChar.uuid,
-      );
-
-      debugPrint("values: $value");
-
-      String hexValue =
-          value.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
-      debugPrint("hexValue: $hexValue");
-
-      bool isZero = value.isNotEmpty && value.every((b) => b == 0);
-
-      String decodedValue = '';
-      bool isValidString = true;
-      try {
-        decodedValue = utf8.decode(value);
-        debugPrint("decodedValue: $decodedValue");
-        if (decodedValue.trim().isEmpty) isValidString = false;
-      } catch (_) {
-        isValidString = false;
-      }
-
-      final displayValue = isZero
-          ? "0"
-          : isValidString
-              ? decodedValue
-              : hexValue;
-
-      debugPrint("displayValue: $displayValue");
-
-      setState(() {
-        _characteristicValues[beaconTunerService!.beaconTunerChar.uuid] =
-            displayValue;
-      });
-    } catch (e) {
-      debugPrint(
-          'Error reading ${beaconTunerService!.beaconTunerChar.uuid}: $e');
-      setState(() {
-        _characteristicValues[beaconTunerService!.beaconTunerChar.uuid] = "0";
-      });
-    }
-  }
-
-  
-  
-  
-  
   Future<void> writeToAssignedCharacteristic(Uint8List value) async {
     if (beaconTunerService == null) {
       debugPrint(
@@ -307,13 +123,13 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
     }
 
     try {
-      await UniversalBle.writeValue(
-        widget.deviceId,
-        beaconTunerService!.service.uuid,
-        beaconTunerService!.beaconTunerChar.uuid,
-        value,
-        BleOutputProperty.withResponse,
-      );
+      // await UniversalBle.writeValue(
+      //   widget.deviceId,
+      //   beaconTunerService!.service.uuid,
+      //   beaconTunerService!.beaconTunerChar.uuid,
+      //   value,
+      //   BleOutputProperty.withResponse,
+      // );
 
       debugPrint(
           'Write command sent successfully to ${beaconTunerService!.beaconTunerChar.uuid}');
@@ -326,37 +142,22 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
     }
   }
 
-  
-  Future<void>charactersticSubscribe() async {
-    if (beaconTunerService == null) {
-      debugPrint("BeaconTunerService is not initialized yet.");
-      return;
-    }
-
-    final characteristic = beaconTunerService!.beaconTunerChar;
-
-    if (!characteristic.properties.contains(CharacteristicProperty.notify) &&
-        !characteristic.properties.contains(CharacteristicProperty.indicate)) {
-      debugPrint(
-          "Characteristic ${characteristic.uuid} does not support notifications or indications.");
-      return;
-    }
-
-    await subscribeAssignedCharacteristic();
-  }
-  
   Future<void> subscribeAssignedCharacteristic() async {
-    debugPrint(
-        "Subscribing to Beacon Tuner Characteristic$beaconTunerService");
-    debugPrint("sunscribe2${beaconTunerService!.beaconTunerChar}");
-    BleInputProperty bleInputProperty;
+    if (beaconTunerService == null) {
+      debugPrint(
+          "Error: beaconTunerService or characteristic is not assigned.");
+      return;
+    }
+
+    // Determine the correct BleInputProperty based on characteristic properties
+    BleInputProperty inputProperty;
     List<CharacteristicProperty> properties =
         beaconTunerService!.beaconTunerChar.properties;
 
     if (properties.contains(CharacteristicProperty.notify)) {
-      bleInputProperty = BleInputProperty.notification;
+      inputProperty = BleInputProperty.notification;
     } else if (properties.contains(CharacteristicProperty.indicate)) {
-      bleInputProperty = BleInputProperty.indication;
+      inputProperty = BleInputProperty.indication;
     } else {
       throw 'No notify or indicate property';
     }
@@ -365,282 +166,43 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
       widget.deviceId,
       beaconTunerService!.service.uuid,
       beaconTunerService!.beaconTunerChar.uuid,
-      bleInputProperty,
+      inputProperty,
     );
+    addLog('BleInputProperty', inputProperty);
+
     setState(() {});
   }
 
-  
-  
-  
-  
-  // Future<void> _readvalue() async{
-  //   try {
-  //     Uint8List value = await UniversalBle.readValue(
-  //       widget.deviceId,
-  //       beaconTunerService.service.uuid,
-  //       beaconTunerService.beaconTunerChar.uuid,
-  //     );
-  //     debugPrint("values: $value");
+  Future<void> unsubscribeAssignedCharacteristic() async {
+    if (beaconTunerService == null) {
+      debugPrint(
+          "Error: beaconTunerService or characteristic is not assigned.");
+      return;
+    }
 
-  //     // Prepare hex
-  //     String hexValue =
-  //         value.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
-  //     debugPrint("hexValue: $hexValue");
+    // Determine the correct BleInputProperty based on characteristic properties
+    BleInputProperty inputProperty;
+    List<CharacteristicProperty> properties =
+        beaconTunerService!.beaconTunerChar.properties;
 
-  //     // Check if it's all zero
-  //     bool isZero = value.isNotEmpty && value.every((b) => b == 0);
+    if (properties.contains(CharacteristicProperty.notify)) {
+      inputProperty = BleInputProperty.notification;
+    } else if (properties.contains(CharacteristicProperty.indicate)) {
+      inputProperty = BleInputProperty.indication;
+    } else {
+      throw 'No notify or indicate property';
+    }
 
-  //     // Try decoding to string
-  //     String decodedValue = '';
-  //     bool isValidString = true;
-  //     try {
-  //       decodedValue = utf8.decode(value);
-  //       debugPrint("decodedValue: $decodedValue");
-  //       if (decodedValue.trim().isEmpty) isValidString = false;
-  //     } catch (_) {
-  //       isValidString = false;
-  //     }
+    await UniversalBle.setNotifiable(
+      widget.deviceId,
+      beaconTunerService!.service.uuid,
+      beaconTunerService!.beaconTunerChar.uuid,
+      BleInputProperty.disabled, // Disable notifications/indications
+    );
+    addLog('BleInputProperty', 'disabled');
 
-  //     final displayValue = isZero
-  //         ? "0"
-  //         : isValidString
-  //             ? decodedValue
-  //             : hexValue;
-
-  //     debugPrint("displayValue: $displayValue");
-
-  //     setState(() {
-  //       _characteristicValues[beaconTunerService.beaconTunerChar.uuid] =
-  //           displayValue;
-  //       _showValueForCharacteristic[beaconTunerService.beaconTunerChar.uuid] =
-  //           true;
-  //     });
-  //   } catch (e) {
-  //     debugPrint(
-  //         'Error reading ${beaconTunerService.beaconTunerChar.uuid}: $e');
-  //   }
-
-  // }
-  // Future<void> _readvalue() async {
-  //     if (beaconTunerService == null) {
-  //   debugPrint("BeaconTunerService is not initialized yet.");
-  //   return;
-  // }
-
-  //   final characteristic = beaconTunerService!.beaconTunerChar;
-
-  //   if (!characteristic.properties.contains(CharacteristicProperty.read)) {
-  //     debugPrint("Characteristic ${characteristic.uuid} is not readable.");
-  //     return;
-  //   }
-
-  //   try {
-  //     Uint8List value = await UniversalBle.readValue(
-  //       widget.deviceId,
-  //       beaconTunerService!.service.uuid,
-  //       characteristic.uuid,
-  //     );
-  //     debugPrint("values: $value");
-
-  //     // Prepare hex
-  //     String hexValue =
-  //         value.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
-  //     debugPrint("hexValue: $hexValue");
-
-  //     // Check if it's all zero
-  //     bool isZero = value.isNotEmpty && value.every((b) => b == 0);
-
-  //     // Try decoding to string
-  //     String decodedValue = '';
-  //     bool isValidString = true;
-  //     try {
-  //       decodedValue = utf8.decode(value);
-  //       debugPrint("decodedValue: $decodedValue");
-  //       if (decodedValue.trim().isEmpty) isValidString = false;
-  //     } catch (_) {
-  //       isValidString = false;
-  //     }
-
-  //     final displayValue = isZero
-  //         ? "0"
-  //         : isValidString
-  //             ? decodedValue
-  //             : hexValue;
-
-  //     debugPrint("displayValue: $displayValue");
-
-  //     setState(() {
-  //       _characteristicValues[characteristic.uuid] = displayValue;
-  //       _showValueForCharacteristic[characteristic.uuid] = true;
-  //     });
-  //   } catch (e) {
-  //     debugPrint('Error reading ${characteristic.uuid}: $e');
-  //     setState(() {
-  //       _characteristicValues[characteristic.uuid] = "0";
-  //     });
-  //   }
-  // }
-
-//   void discoverBeaconTunerService(List<BleService> services, String characteristicUuid) {
-//   for (var service in services) {
-//     for (var characteristic in service.characteristics) {
-//       if (characteristic.uuid.toLowerCase() == characteristicUuid.toLowerCase()) {
-//         if (!characteristic.properties
-//             .map((e) => e.toString())
-//             .contains('read')) {
-//           debugPrint("Characteristic ${characteristic.uuid} is not readable.");
-//           return;
-//         }
-
-//         setState(() {
-//                   beaconTunerService = BeaconTunerService()
-//           ..service = service
-//           ..beaconTunerChar = characteristic;
-
-//           // beaconTunerService = BeaconTunerService(
-
-//           // );
-//         });
-//         debugPrint("Assigned beaconTunerService: service ${service.uuid}, characteristic ${characteristic.uuid}");
-//         return;
-//       }
-//     }
-//   }
-//   debugPrint("BeaconTunerService not found.");
-// }
-
-// Your _readvalue method as you wrote it
-// Future<void> _readvalue() async {
-//   final targetUuid = beaconTunerService?.beaconTunerChar.uuid.toLowerCase();
-
-//   if (targetUuid == null) {
-//     debugPrint("BeaconTunerService is not initialized.");
-//     return;
-//   }
-
-//   var services = await UniversalBle.discoverServices(widget.deviceId);
-//   debugPrint("Discovered services: $services");
-
-//   for (var service in services) {
-//     for (var characteristic in service.characteristics) {
-//       debugPrint("Checking characteristic: ${characteristic.uuid}");
-
-//       if (characteristic.uuid.toLowerCase() != targetUuid) continue;
-
-//       if (!characteristic.properties.contains(CharacteristicProperty.read)) {
-//         debugPrint("Characteristic ${characteristic.uuid} is not readable.");
-//         return;
-//       }
-
-//       beaconTunerService!.service = service;
-//       beaconTunerService!.beaconTunerChar = characteristic;
-
-//       try {
-//         Uint8List value = await UniversalBle.readValue(
-//           widget.deviceId,
-//           service.uuid,
-//           characteristic.uuid,
-//         );
-
-//         debugPrint("Raw Value: $value");
-
-//         String hexValue =
-//             value.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
-//         bool isZero = value.isNotEmpty && value.every((b) => b == 0);
-
-//         String decodedValue = '';
-//         bool isValidString = true;
-//         try {
-//           decodedValue = utf8.decode(value);
-//           if (decodedValue.trim().isEmpty) isValidString = false;
-//         } catch (_) {
-//           isValidString = false;
-//         }
-
-//         final displayValue = isZero
-//             ? "0"
-//             : isValidString
-//                 ? decodedValue
-//                 : hexValue;
-
-//         debugPrint("Final displayValue: $displayValue");
-
-//         setState(() {
-//           _characteristicValues[characteristic.uuid] = displayValue;
-//           _showValueForCharacteristic[characteristic.uuid] = true;
-//         });
-//       } catch (e) {
-//         debugPrint('Error reading ${characteristic.uuid}: $e');
-//         setState(() {
-//           _characteristicValues[characteristic.uuid] = "0";
-//         });
-//       }
-
-//       return; // Stop after reading the correct one
-//     }
-//   }
-
-//   debugPrint("No matching characteristic found for UUID: $targetUuid");
-// }
-
-//   Future<void> _readvalue() async {
-//   final services = await UniversalBle.discoverServices(widget.deviceId);
-//   debugPrint("Discovered services: $services");
-
-//   for (var service in services) {
-//     for (var characteristic in service.characteristics) {
-//       final charUuid = characteristic.uuid.toLowerCase();
-
-//       if (!characteristic.properties.contains(CharacteristicProperty.read)) {
-//         debugPrint("Skipping non-readable characteristic: $charUuid");
-//         continue;
-//       }
-
-//       debugPrint("Reading readable characteristic: $charUuid");
-
-//       try {
-//         Uint8List value = await UniversalBle.readValue(
-//           widget.deviceId,
-//           service.uuid,
-//           characteristic.uuid,
-//         );
-
-//         debugPrint("Raw Value for $charUuid: $value");
-
-//         String hexValue = value.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
-//         bool isZero = value.isNotEmpty && value.every((b) => b == 0);
-
-//         String decodedValue = '';
-//         bool isValidString = true;
-//         try {
-//           decodedValue = utf8.decode(value);
-//           if (decodedValue.trim().isEmpty) isValidString = false;
-//         } catch (_) {
-//           isValidString = false;
-//         }
-
-//         final displayValue = isZero
-//             ? "0"
-//             : isValidString
-//                 ? decodedValue
-//                 : hexValue;
-
-//         debugPrint("Final displayValue for $charUuid: $displayValue");
-
-//         setState(() {
-//           _characteristicValues[characteristic.uuid] = displayValue;
-//           _showValueForCharacteristic[characteristic.uuid] = true;
-//         });
-//       } catch (e) {
-//         debugPrint('Error reading $charUuid: $e');
-//         setState(() {
-//           _characteristicValues[characteristic.uuid] = "0";
-//         });
-//       }
-//     }
-//   }
-// }
+    setState(() {});
+  }
 
   String _getCharacteristicKey(String serviceUuid, String charUuid) {
     return '$serviceUuid|$charUuid';
@@ -648,23 +210,11 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint("isCurrentlySubscribed: $_characteristicSubscriptions");
     return GestureDetector(
       onHorizontalDragEnd: (details) async {
-        // if (details.primaryVelocity != null && details.primaryVelocity! > 0) {
-
-        //   // final dir = await getApplicationDocumentsDirectory();
-        //   // final file = File('${dir.path}/logs.txt');
-        //   // if (await file.exists()) {
-        //   //   await file.writeAsString(''); // Clear the file content
-        //   // }
-        //   Navigator.push(
-        //     context,
-        //     MaterialPageRoute(builder: (context) => Logs()),
-        //   );
-        // }
         if (details.primaryVelocity != null) {
           if (details.primaryVelocity! > 0) {
-            debugPrint("Left to right swipe detected");
             // Left to right swipe – go to Logs
             Navigator.push(
               context,
@@ -759,16 +309,30 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              Text(
-                                                BLECharacteristicHelper
-                                                    .getCharacteristicName(
-                                                        e.uuid.substring(0, 8)),
-                                                style: const TextStyle(
-                                                    fontSize: 12,
-                                                    fontWeight:
-                                                        FontWeight.w500),
-                                                softWrap: true,
-                                              ),
+                                              FutureBuilder<String>(
+  future: BLECharacteristicHelper.getCharacteristicName(e.uuid),
+  builder: (context, snapshot) {
+    return Text(
+      snapshot.data ?? e.uuid,
+      style: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+      ),
+      softWrap: true,
+    );
+  },
+),
+
+                                              // Text(
+                                              //   BLECharacteristicHelper
+                                              //       .getCharacteristicName(
+                                              //           e.uuid.substring(0, 8)),
+                                              //   style: const TextStyle(
+                                              //       fontSize: 12,
+                                              //       fontWeight:
+                                              //           FontWeight.w500),
+                                              //   softWrap: true,
+                                              // ),
                                               const SizedBox(height: 4),
                                               Text(
                                                 'UUID: 0x${e.uuid.substring(0, 8).replaceFirst(RegExp(r'^0+'), '').toUpperCase()}',
@@ -828,26 +392,84 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
                                                         horizontal: 2.0),
                                                 child: GestureDetector(
                                                   onTap: () async {
-                                                    //await _readvalue();
-                                                    // await _readValue(
-                                                    //   widget.deviceId,
-                                                    //   // widget.discoveredServices,
-                                                    //   // e.uuid,
-                                                    // );
-                                                    await assignServiceAndCharacteristic(
-                                                      targetServiceUuid:
-                                                          service.uuid,
-                                                      targetCharacteristicUuid:
-                                                          e.uuid,
-                                                    );
+                                                    try {
+                                                      Uint8List? value =
+                                                          await EmBleOpcodes
+                                                              .readvalue(
+                                                        deviceId:
+                                                            widget.deviceId,
+                                                        service: service,
+                                                        characteristic: e,
+                                                      );
 
-                                                    await readAssignedCharacteristicValue();
+                                                      debugPrint(
+                                                          "values: $value");
 
-                                                    if (mounted) {
-                                                      setState(() {
-                                                        _showValueForCharacteristic[
-                                                            e.uuid] = true;
-                                                      });
+                                                      final hexValue = value !=
+                                                              null
+                                                          ? value
+                                                              .map((b) => b
+                                                                  .toRadixString(
+                                                                      16)
+                                                                  .padLeft(
+                                                                      2, '0'))
+                                                              .join(' ')
+                                                          : '';
+
+                                                      debugPrint(
+                                                          "hexValue: $hexValue");
+
+                                                      final isZero = value !=
+                                                              null &&
+                                                          value.isNotEmpty &&
+                                                          value.every(
+                                                              (b) => b == 0);
+
+                                                      String decodedValue = '';
+                                                      bool isValidString =
+                                                          false;
+                                                      try {
+                                                        decodedValue =
+                                                            utf8.decode(
+                                                                value ?? []);
+                                                        isValidString =
+                                                            decodedValue
+                                                                .trim()
+                                                                .isNotEmpty;
+                                                        debugPrint(
+                                                            "decodedValue: $decodedValue");
+                                                      } catch (_) {}
+
+                                                      final displayValue =
+                                                          isZero
+                                                              ? "0"
+                                                              : isValidString
+                                                                  ? decodedValue
+                                                                  : hexValue;
+
+                                                      debugPrint(
+                                                          "displayValue: $displayValue");
+
+                                                      if (mounted) {
+                                                        setState(() {
+                                                          _characteristicValues[
+                                                                  e.uuid] =
+                                                              displayValue;
+                                                          _showValueForCharacteristic[
+                                                              e.uuid] = true;
+                                                        });
+                                                      }
+                                                    } catch (err) {
+                                                      debugPrint(
+                                                          'Error reading ${e.uuid}: $err');
+                                                      if (mounted) {
+                                                        setState(() {
+                                                          _characteristicValues[
+                                                              e.uuid] = "0";
+                                                          _showValueForCharacteristic[
+                                                              e.uuid] = true;
+                                                        });
+                                                      }
                                                     }
                                                   },
                                                   child: Icon(
@@ -857,370 +479,32 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
                                                   ),
                                                 ),
                                               );
-                                            } 
-                                            else if (type == 'write') {
+                                            } else if (type == 'write') {
                                               return Padding(
                                                 padding:
                                                     const EdgeInsets.symmetric(
                                                         horizontal: 2.0),
                                                 child: GestureDetector(
                                                   onTap: () {
-                                                    // showDialog(
-                                                    //   context: context,
-                                                    //   builder: (BuildContext
-                                                    //       context) {
-                                                    //     String inputValue = '';
-                                                    //     String selectedFormat =
-                                                    //         'Byte Array';
-                                                    //     final formats = [
-                                                    //       'Text (UTF-8)',
-                                                    //       'Byte',
-                                                    //       'Byte Array',
-                                                    //       'UInt8',
-                                                    //       'UInt16 (Little Endian)',
-                                                    //       'UInt16 (Big Endian)',
-                                                    //       'UInt32 (Little Endian)',
-                                                    //       'UInt32 (Big Endian)',
-                                                    //       'SInt8',
-                                                    //       'SInt16 (Big Endian)',
-                                                    //       'SInt32 (Little Endian)',
-                                                    //       'SInt32 (Big Endian)',
-                                                    //       'Float16 (IEEE-11073)',
-                                                    //       'Float32 (IEEE-11073)',
-                                                    //     ];
-
-                                                    //     return StatefulBuilder(
-                                                    //       builder: (context,
-                                                    //           setState) {
-                                                    //         return AlertDialog(
-                                                    //           title: const Text(
-                                                    //               'Write value'),
-                                                    //           content: Column(
-                                                    //             mainAxisSize:
-                                                    //                 MainAxisSize
-                                                    //                     .min,
-                                                    //             children: [
-                                                    //               Row(
-                                                    //                 children: [
-                                                    //                   Expanded(
-                                                    //                     child:
-                                                    //                         TextField(
-                                                    //                       autofocus:
-                                                    //                           true,
-                                                    //                       keyboardType: selectedFormat == 'Text (UTF-8)'
-                                                    //                           ? TextInputType.text
-                                                    //                           : TextInputType.number,
-                                                    //                       decoration:
-                                                    //                           const InputDecoration(hintText: 'Enter value'),
-                                                    //                       onChanged: (value) =>
-                                                    //                           inputValue = value,
-                                                    //                     ),
-                                                    //                   ),
-                                                    //                   const SizedBox(
-                                                    //                       width:
-                                                    //                           8),
-                                                    //                   DropdownButton<
-                                                    //                       String>(
-                                                    //                     value:
-                                                    //                         selectedFormat,
-                                                    //                     isDense:
-                                                    //                         true,
-                                                    //                     style: const TextStyle(
-                                                    //                         color:
-                                                    //                             Colors.black,
-                                                    //                         fontSize: 12),
-                                                    //                     alignment:
-                                                    //                         Alignment.centerRight,
-                                                    //                     items: formats
-                                                    //                         .map((format) {
-                                                    //                       return DropdownMenuItem(
-                                                    //                         value:
-                                                    //                             format,
-                                                    //                         child:
-                                                    //                             Text(
-                                                    //                           format,
-                                                    //                           style: const TextStyle(fontSize: 12),
-                                                    //                         ),
-                                                    //                       );
-                                                    //                     }).toList(),
-                                                    //                     onChanged:
-                                                    //                         (value) {
-                                                    //                       if (value !=
-                                                    //                           null) {
-                                                    //                         setState(() =>
-                                                    //                             selectedFormat = value);
-                                                    //                       }
-                                                    //                     },
-                                                    //                   ),
-                                                    //                 ],
-                                                    //               ),
-                                                    //             ],
-                                                    //           ),
-                                                    //           actions: [
-                                                    //             TextButton(
-                                                    //               onPressed: () =>
-                                                    //                   Navigator.of(
-                                                    //                           context)
-                                                    //                       .pop(),
-                                                    //               child: const Text(
-                                                    //                   'CANCEL'),
-                                                    //             ),
-                                                    //             TextButton(
-                                                    //               onPressed:
-                                                    //                   () async {
-                                                    //                 Navigator.of(
-                                                    //                         context)
-                                                    //                     .pop();
-                                                    //                 List<int>
-                                                    //                     bytes =
-                                                    //                     [];
-
-                                                    //                 try {
-                                                    //                   debugPrint(
-                                                    //                       "Input Value: $inputValue");
-                                                    //                   switch (
-                                                    //                       selectedFormat) {
-                                                    //                     case 'Text (UTF-8)':
-                                                    //                       bytes =
-                                                    //                           inputValue.codeUnits;
-                                                    //                       break;
-
-                                                    //                     case 'Byte':
-                                                    //                     case 'UInt8':
-                                                    //                       int val =
-                                                    //                           int.parse(inputValue);
-                                                    //                       if (val < 0 ||
-                                                    //                           val > 255) {
-                                                    //                         throw Exception("UInt8 out of range");
-                                                    //                       }
-                                                    //                       bytes =
-                                                    //                           [
-                                                    //                         val
-                                                    //                       ];
-                                                    //                       break;
-
-                                                    //                     case 'Byte Array':
-                                                    //                       bytes = inputValue
-                                                    //                           .split(',')
-                                                    //                           .map((s) => int.parse(s.trim()))
-                                                    //                           .toList();
-                                                    //                           debugPrint("Byte Array: $bytes");
-                                                    //                       break;
-
-                                                    //                     case 'UInt16 (Little Endian)':
-                                                    //                       int val =
-                                                    //                           int.parse(inputValue);
-                                                    //                       bytes =
-                                                    //                           [
-                                                    //                         val &
-                                                    //                             0xFF,
-                                                    //                         (val >> 8) &
-                                                    //                             0xFF
-                                                    //                       ];
-                                                    //                       break;
-
-                                                    //                     case 'UInt16 (Big Endian)':
-                                                    //                       int val =
-                                                    //                           int.parse(inputValue);
-                                                    //                       bytes =
-                                                    //                           [
-                                                    //                         (val >> 8) &
-                                                    //                             0xFF,
-                                                    //                         val &
-                                                    //                             0xFF
-                                                    //                       ];
-                                                    //                       break;
-
-                                                    //                     case 'UInt32 (Little Endian)':
-                                                    //                       int val =
-                                                    //                           int.parse(inputValue);
-                                                    //                       bytes =
-                                                    //                           [
-                                                    //                         val &
-                                                    //                             0xFF,
-                                                    //                         (val >> 8) &
-                                                    //                             0xFF,
-                                                    //                         (val >> 16) &
-                                                    //                             0xFF,
-                                                    //                         (val >> 24) &
-                                                    //                             0xFF
-                                                    //                       ];
-                                                    //                       break;
-
-                                                    //                     case 'UInt32 (Big Endian)':
-                                                    //                       int val =
-                                                    //                           int.parse(inputValue);
-                                                    //                       bytes =
-                                                    //                           [
-                                                    //                         (val >> 24) &
-                                                    //                             0xFF,
-                                                    //                         (val >> 16) &
-                                                    //                             0xFF,
-                                                    //                         (val >> 8) &
-                                                    //                             0xFF,
-                                                    //                         val &
-                                                    //                             0xFF
-                                                    //                       ];
-                                                    //                       break;
-
-                                                    //                     case 'SInt8':
-                                                    //                       int val =
-                                                    //                           int.parse(inputValue);
-                                                    //                       if (val < -128 ||
-                                                    //                           val > 127) {
-                                                    //                         throw Exception("SInt8 out of range");
-                                                    //                       }
-                                                    //                       bytes =
-                                                    //                           [
-                                                    //                         val &
-                                                    //                             0xFF
-                                                    //                       ];
-                                                    //                       break;
-
-                                                    //                     case 'SInt16 (Big Endian)':
-                                                    //                       int val =
-                                                    //                           int.parse(inputValue);
-                                                    //                       if (val < -32768 ||
-                                                    //                           val > 32767) {
-                                                    //                         throw Exception("SInt16 out of range");
-                                                    //                       }
-                                                    //                       bytes =
-                                                    //                           [
-                                                    //                         (val >> 8) &
-                                                    //                             0xFF,
-                                                    //                         val &
-                                                    //                             0xFF
-                                                    //                       ];
-                                                    //                       break;
-
-                                                    //                     case 'SInt32 (Little Endian)':
-                                                    //                       int val =
-                                                    //                           int.parse(inputValue);
-                                                    //                       bytes =
-                                                    //                           [
-                                                    //                         val &
-                                                    //                             0xFF,
-                                                    //                         (val >> 8) &
-                                                    //                             0xFF,
-                                                    //                         (val >> 16) &
-                                                    //                             0xFF,
-                                                    //                         (val >> 24) &
-                                                    //                             0xFF
-                                                    //                       ];
-                                                    //                       break;
-
-                                                    //                     case 'SInt32 (Big Endian)':
-                                                    //                       int val =
-                                                    //                           int.parse(inputValue);
-                                                    //                       bytes =
-                                                    //                           [
-                                                    //                         (val >> 24) &
-                                                    //                             0xFF,
-                                                    //                         (val >> 16) &
-                                                    //                             0xFF,
-                                                    //                         (val >> 8) &
-                                                    //                             0xFF,
-                                                    //                         val &
-                                                    //                             0xFF
-                                                    //                       ];
-                                                    //                       break;
-
-                                                    //                     case 'Float16 (IEEE-11073)':
-                                                    //                       int val =
-                                                    //                           int.parse(inputValue); // Simulated as 2-byte int
-                                                    //                       bytes =
-                                                    //                           [
-                                                    //                         val &
-                                                    //                             0xFF,
-                                                    //                         (val >> 8) &
-                                                    //                             0xFF
-                                                    //                       ];
-                                                    //                       break;
-
-                                                    //                     case 'Float32 (IEEE-11073)':
-                                                    //                       double
-                                                    //                           floatVal =
-                                                    //                           double.parse(inputValue);
-                                                    //                       final byteData = ByteData(
-                                                    //                           4)
-                                                    //                         ..setFloat32(
-                                                    //                             0,
-                                                    //                             floatVal,
-                                                    //                             Endian.little);
-                                                    //                       bytes = byteData
-                                                    //                           .buffer
-                                                    //                           .asUint8List();
-                                                    //                       break;
-
-                                                    //                     default:
-                                                    //                       bytes =
-                                                    //                           inputValue.codeUnits;
-                                                    //                   }
-                                                    //                   addLog(
-                                                    //                       "Sent",
-                                                    //                       bytes);
-                                                    //                   // .map((b) => b.toRadixString(16).padLeft(2, '0'))
-                                                    //                   // .join('-'));
-
-                                                    //                   await assignServiceAndCharacteristic(
-                                                    //                     targetServiceUuid:
-                                                    //                         service.uuid,
-                                                    //                     targetCharacteristicUuid:
-                                                    //                         e.uuid,
-                                                    //                   );
-                                                    //                   await writeToAssignedCharacteristic(
-                                                    //                       Uint8List.fromList(
-                                                    //                           bytes));
-
-                                                    //                   debugPrint(
-                                                    //                       'Write command sent successfully');
-                                                    //                   await Future.delayed(const Duration(
-                                                    //                       milliseconds:
-                                                    //                           500));
-                                                    //                 } catch (e) {
-                                                    //                   debugPrint(
-                                                    //                       'Write Error: $e');
-                                                    //                   if (!mounted) {
-                                                    //                     return;
-                                                    //                   }
-                                                    //                   ScaffoldMessenger.of(
-                                                    //                           context)
-                                                    //                       .showSnackBar(
-                                                    //                     SnackBar(
-                                                    //                         content:
-                                                    //                             Text('Invalid input: $e')),
-                                                    //                   );
-                                                    //                 }
-                                                    //               },
-                                                    //               child:
-                                                    //                   const Text(
-                                                    //                       'SEND'),
-                                                    //             ),
-                                                    //           ],
-                                                    //         );
-                                                    //       },
-                                                    //     );
-                                                    //   },
-                                                    // );
-
-
-
-                                                      showWriteDialog(
-    context,
-    service.uuid,
-    e.uuid,
-    onWrite: (Uint8List value) async {
-      await assignServiceAndCharacteristic(
-        targetServiceUuid: service.uuid,
-        targetCharacteristicUuid: e.uuid,
-      );
-      await writeToAssignedCharacteristic(value);
-    },
-    addLog: (type, bytes) {
-      addLog(type, bytes);
-    },
-  );
-
+                                                    showWriteDialog(
+                                                      context,
+                                                      service.uuid,
+                                                      e.uuid,
+                                                      onWrite: (Uint8List
+                                                          value) async {
+                                                        await EmBleOpcodes
+                                                            .writeWithResponse(
+                                                          deviceId:
+                                                              widget.deviceId,
+                                                          service: service,
+                                                          characteristic: e,
+                                                          payload: value,
+                                                        );
+                                                      },
+                                                      addLog: (type, bytes) {
+                                                        addLog(type, bytes);
+                                                      },
+                                                    );
                                                   },
                                                   child: Icon(
                                                     propertyIcons[type]!,
@@ -1229,8 +513,7 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
                                                   ),
                                                 ),
                                               );
-                                            } 
-                                            else if (type == 'notify' ||
+                                            } else if (type == 'notify' ||
                                                 type == 'notification') {
                                               return Padding(
                                                 padding:
@@ -1238,13 +521,46 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
                                                         horizontal: 2.0),
                                                 child: GestureDetector(
                                                   onTap: () async {
-                                                    toggleSubscription(
-                                                        service.uuid, e.uuid);
+                                                     final key =
+                                                        _getCharacteristicKey(
+                                                            service.uuid,
+                                                            e.uuid);
+                                                    final isCurrentlySubscribed =
+                                                        _characteristicSubscriptions[
+                                                                key] ??
+                                                            false;
+
+                                                    if (isCurrentlySubscribed) {
+                                                      await EmBleOpcodes
+                                                          .unsubscription(
+                                                        deviceId:
+                                                            widget.deviceId,
+                                                        service: service,
+                                                        characteristic: e,
+                                                      );
+                                                    } else {
+                                                      await EmBleOpcodes
+                                                          .subscription(
+                                                        deviceId:
+                                                            widget.deviceId,
+                                                        service: service,
+                                                        characteristic: e,
+                                                      );
+                                                    }
+
+                                                    setState(() {
+                                                      _characteristicSubscriptions[
+                                                              key] =
+                                                          !isCurrentlySubscribed;
+                                                    });
+
 
                                                     final subscribed =
                                                         isSubscribed(
                                                             service.uuid,
                                                             e.uuid);
+                                                    debugPrint(
+                                                        "notification: $subscribed");
                                                     final displayValue = subscribed
                                                         ? "Notifications are enabled"
                                                         : "Notifications are disabled";
@@ -1256,8 +572,27 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
                                                           .uuid] = displayValue;
                                                     });
 
-                                                    debugPrint(
-                                                        "Status: $displayValue");
+
+                                                    // toggleSubscription(
+                                                    //     service.uuid, e.uuid);
+
+                                                    // final subscribed =
+                                                    //     isSubscribed(
+                                                    //         service.uuid,
+                                                    //         e.uuid);
+                                                    // final displayValue = subscribed
+                                                    //     ? "Notifications are enabled"
+                                                    //     : "Notifications are disabled";
+
+                                                    // setState(() {
+                                                    //   _showValueForCharacteristic[
+                                                    //       e.uuid] = true;
+                                                    //   _characteristicValues[e
+                                                    //       .uuid] = displayValue;
+                                                    // });
+
+                                                    // debugPrint(
+                                                    //     "Status: $displayValue");
                                                   },
                                                   child: Container(
                                                     padding:
@@ -1298,13 +633,50 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
                                                         horizontal: 2.0),
                                                 child: GestureDetector(
                                                   onTap: () async {
-                                                    toggleSubscription(
-                                                        service.uuid, e.uuid);
+                                                    final key =
+                                                        _getCharacteristicKey(
+                                                            service.uuid,
+                                                            e.uuid);
+                                                    final isCurrentlySubscribed =
+                                                        _characteristicSubscriptions[
+                                                                key] ??
+                                                            false;
+                                                    debugPrint(
+                                                        "toggleSubscription: $key, currently subscribed: $isCurrentlySubscribed");
+
+                                                    if (isCurrentlySubscribed) {
+                                                      await EmBleOpcodes
+                                                          .unsubscription(
+                                                        deviceId:
+                                                            widget.deviceId,
+                                                        service: service,
+                                                        characteristic: e,
+                                                      );
+                                                    } else {
+                                                      await EmBleOpcodes
+                                                          .subscription(
+                                                        deviceId:
+                                                            widget.deviceId,
+                                                        service: service,
+                                                        characteristic: e,
+                                                      );
+                                                    }
+
+                                                    setState(() {
+                                                      _characteristicSubscriptions[
+                                                              key] =
+                                                          !isCurrentlySubscribed;
+                                                    });
+
+                                                    // toggleSubscription(
+                                                    //     service.uuid, e.uuid);
 
                                                     final subscribed =
                                                         isSubscribed(
                                                             service.uuid,
                                                             e.uuid);
+                                                    debugPrint(
+                                                        "indications: $subscribed");
                                                     final displayValue = subscribed
                                                         ? "Indications are enabled"
                                                         : "Indications are disabled";
@@ -1359,26 +731,26 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
                                                         horizontal: 2.0),
                                                 child: GestureDetector(
                                                   onTap: () async {
-                                                    toggleSubscription(
-                                                        service.uuid, e.uuid);
+                                                    // toggleSubscription(
+                                                    //     service.uuid, e.uuid);
 
-                                                    final subscribed =
-                                                        isSubscribed(
-                                                            service.uuid,
-                                                            e.uuid);
-                                                    final displayValue = subscribed
-                                                        ? "Notifications and indications are enabled"
-                                                        : "Notifications and indications are disabled";
+                                                    // final subscribed =
+                                                    //     isSubscribed(
+                                                    //         service.uuid,
+                                                    //         e.uuid);
+                                                    // final displayValue = subscribed
+                                                    //     ? "Notifications and indications are enabled"
+                                                    //     : "Notifications and indications are disabled";
 
-                                                    setState(() {
-                                                      _showValueForCharacteristic[
-                                                          e.uuid] = true;
-                                                      _characteristicValues[e
-                                                          .uuid] = displayValue;
-                                                    });
+                                                    // setState(() {
+                                                    //   _showValueForCharacteristic[
+                                                    //       e.uuid] = true;
+                                                    //   _characteristicValues[e
+                                                    //       .uuid] = displayValue;
+                                                    // });
 
-                                                    debugPrint(
-                                                        "Status: $displayValue");
+                                                    // debugPrint(
+                                                    //     "Status: $displayValue");
                                                   },
                                                   child: Container(
                                                     padding:
