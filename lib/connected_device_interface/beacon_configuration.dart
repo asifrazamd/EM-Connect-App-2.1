@@ -55,6 +55,7 @@ String _fwVersionMajor = "";
 String _fwVersionMinor = "";
 String _hwVersion = "";
 String _batteryVoltage = "";
+int? advPacketType;
 
 class BeaconConfiguration extends StatefulWidget {
   final String deviceId;
@@ -167,6 +168,7 @@ class _BeaconConfigurationState extends State<BeaconConfiguration> {
       if (value[1] == 0x21) {
         setState(() {
           selectedRadioIndex = value[3];
+          selectedRadioIndex = _mapAdvPacketTypeToRadioIndex(value[3]);
           interval1 = (value[5] << 8) | value[4];
           interval1 = (interval1! * 0.625).round();
           txPowerLevel = value[6] > 127 ? (value[6] - 256) : value[6];
@@ -334,7 +336,7 @@ class _BeaconConfigurationState extends State<BeaconConfiguration> {
 
           setState(() {
             AoA_Enable = enable.toString();
-            AoA_Interval = intervalMs.toString();
+            AoA_Interval = interval.toString();
             AoA_CTE_length = cteLength.toString();
             AoA_CTE_count = cteCount.toString();
 
@@ -346,9 +348,11 @@ class _BeaconConfigurationState extends State<BeaconConfiguration> {
           print("CTE Length: $AoA_CTE_length");
           print("CTE Count: $AoA_CTE_count");
 
-          _CTEintervalController.text = intervalMs.toString();
+          _CTEintervalController.text = interval.toString();
           _CTElengthController.text = cteLength.toString();
           _CTEcountController.text = cteCount.toString();
+          calculatedIntervalDisplay =
+              'Equivalent Interval Time: ${intervalMs.toStringAsFixed(2)} ms';
         });
       } else {
         setState(() {
@@ -407,6 +411,25 @@ class _BeaconConfigurationState extends State<BeaconConfiguration> {
     isFetchComplete = true;
   }
 
+  int _mapAdvPacketTypeToRadioIndex(int type) {
+    switch (type) {
+      case 0:
+        return 0;
+      case 1:
+        return 1;
+      case 2:
+        return 2;
+      case 5:
+        return 3; // Eddystone-TLM
+      case 3:
+        return 4; // AltBeacon
+      case 4:
+        return 5; // Manufacturer Specific Data
+      default:
+        return -1;
+    }
+  }
+
   void _showDialog(BuildContext context, String title, String message) {
     showDialog(
       context: context,
@@ -462,8 +485,8 @@ class _BeaconConfigurationState extends State<BeaconConfiguration> {
     try {
       BleService selService = widget.beaconTunerService.service;
       BleCharacteristic selChar = widget.beaconTunerService.beaconTunerChar;
-      Uint8List advertisingSettings =
-          createAdvertisingSettings(opcode, packetType, interval, txPowerLevel);
+      Uint8List advertisingSettings = createAdvertisingSettings(
+          opcode, advPacketType!, interval, txPowerLevel);
 
       await UniversalBle.writeValue(
         widget.deviceId,
@@ -859,7 +882,7 @@ class _BeaconConfigurationState extends State<BeaconConfiguration> {
                                               'Interval Units (6 to 65535)',
                                               style: TextStyle(
                                                 fontSize: 15,
-                                                color: UIColors.emGrey,
+                                                color: UIColors.emDarkGrey,
                                               ),
                                             ),
                                             SizedBox(height: 10),
@@ -949,7 +972,8 @@ class _BeaconConfigurationState extends State<BeaconConfiguration> {
                                                   'CTE Length (2 to 20)',
                                                   style: TextStyle(
                                                     fontSize: 15,
-                                                    color: UIColors.emGrey,
+                                                    //color:UIColors.emNearBlack
+                                                    color: UIColors.emDarkGrey,
                                                   ),
                                                 ),
                                               ],
@@ -1011,7 +1035,8 @@ class _BeaconConfigurationState extends State<BeaconConfiguration> {
                                                   'CTE Count (1 to 16)',
                                                   style: TextStyle(
                                                     fontSize: 15,
-                                                    color: UIColors.emGrey,
+                                                    //color: UIColors.emGrey,
+                                                    color:UIColors.emDarkGrey
                                                   ),
                                                 ),
                                               ],
@@ -1259,6 +1284,7 @@ class _BeaconConfigurationState extends State<BeaconConfiguration> {
   void _handleRadioChange(int value) {
     switch (value) {
       case 0:
+        advPacketType = 0;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -1271,6 +1297,7 @@ class _BeaconConfigurationState extends State<BeaconConfiguration> {
         break;
 
       case 1:
+        advPacketType = 1;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -1284,6 +1311,7 @@ class _BeaconConfigurationState extends State<BeaconConfiguration> {
         break;
 
       case 2:
+        advPacketType = 2;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -1297,6 +1325,7 @@ class _BeaconConfigurationState extends State<BeaconConfiguration> {
         break;
 
       case 3:
+        advPacketType = 5;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -1309,6 +1338,7 @@ class _BeaconConfigurationState extends State<BeaconConfiguration> {
         break;
 
       case 4:
+        advPacketType = 3;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -1322,6 +1352,7 @@ class _BeaconConfigurationState extends State<BeaconConfiguration> {
         break;
 
       case 5:
+        advPacketType = 4;
         Navigator.push(
           context,
           MaterialPageRoute(

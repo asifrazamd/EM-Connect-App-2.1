@@ -1,4 +1,5 @@
 
+import 'package:convert/convert.dart';
 import 'package:emconnect/app_globals.dart';
 import 'package:flutter/foundation.dart';
 import 'package:universal_ble/universal_ble.dart';
@@ -126,11 +127,15 @@ class EmBleOps {
 
       debugPrint(
           "Subscription set successfully with BleInputProperty: $inputProperty");
+            // Then listen for data changes
+
     } catch (e) {
       debugPrint("Error setting subscription: $e");
     }
   }
 
+  
+  
   /// Notification or Indication unsubscribe 
   static Future<void> unsubscription({
     required String deviceId,
@@ -152,4 +157,6 @@ class EmBleOps {
       debugPrint("Error clearing subscription: $e");
     }
   }
+
+
 }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:convert/convert.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:emconnect/char.dart';
@@ -36,6 +37,7 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
   void initState() {
     super.initState();
     _initializeExpandedStates();
+    // Start listening for characteristic value changes (notifications)
   }
 
   void _initializeExpandedStates() {
@@ -55,6 +57,8 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
   final Map<String, bool> _characteristicSubscriptions = {};
   final Map<String, String> _characteristicValues = {};
   final Map<String, bool> _showValueForCharacteristic = {};
+  Map<String, String> _notificationValues =
+      {}; // key = characteristic UUID, value = hex string
 
   final Map<String, IconData> propertyIcons = {
     'read': Icons.download,
@@ -81,10 +85,6 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
   //   });
   // }
 
-  
-  
-  
-  
   Future<void> assignServiceAndCharacteristic({
     required String targetServiceUuid,
     required String targetCharacteristicUuid,
@@ -210,7 +210,6 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint("isCurrentlySubscribed: $_characteristicSubscriptions");
     return GestureDetector(
       onHorizontalDragEnd: (details) async {
         if (details.primaryVelocity != null) {
@@ -231,7 +230,6 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
               ),
             );
           } else if (details.primaryVelocity! < 0) {
-            debugPrint("Right to left swipe detected");
             // Right to left swipe – go back
             Navigator.pop(context);
           }
@@ -310,18 +308,21 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               FutureBuilder<String>(
-  future: BLECharacteristicHelper.getCharacteristicName(e.uuid),
-  builder: (context, snapshot) {
-    return Text(
-      snapshot.data ?? e.uuid,
-      style: const TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w500,
-      ),
-      softWrap: true,
-    );
-  },
-),
+                                                future: BLECharacteristicHelper
+                                                    .getCharacteristicName(
+                                                        e.uuid),
+                                                builder: (context, snapshot) {
+                                                  return Text(
+                                                    snapshot.data ?? e.uuid,
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                    softWrap: true,
+                                                  );
+                                                },
+                                              ),
 
                                               // Text(
                                               //   BLECharacteristicHelper
@@ -346,9 +347,26 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
                                                     fontSize: 12),
                                                 softWrap: true,
                                               ),
+                                              if (_notificationValues
+                                                  .containsKey(e.uuid))
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                          top: 8.0),
+                                                  child: Text(
+                                                    'Notification value: ${_notificationValues[e.uuid]}',
+                                                    style: const TextStyle(
+                                                        color: Colors.black87,
+                                                        fontSize: 12),
+                                                  ),
+                                                ),
+
                                               if (e.properties.contains(
-                                                  CharacteristicProperty
-                                                      .indicate)) ...[
+                                                      CharacteristicProperty
+                                                          .indicate) ||
+                                                  e.properties.contains(
+                                                      CharacteristicProperty
+                                                          .notify)) ...[
                                                 const SizedBox(height: 4),
                                                 const Text(
                                                   'Descriptors:',
@@ -426,16 +444,18 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
                                                               (b) => b == 0);
 
                                                       String decodedValue = '';
+                                                      bool isPrintable = false;
                                                       bool isValidString =
                                                           false;
                                                       try {
                                                         decodedValue =
                                                             utf8.decode(
                                                                 value ?? []);
-                                                        isValidString =
-                                                            decodedValue
-                                                                .trim()
-                                                                .isNotEmpty;
+            isPrintable = decodedValue.runes.every((r) => r >= 0x20 && r <= 0x7E);
+                                                        // isValidString =
+                                                        //     decodedValue
+                                                        //         .trim()
+                                                        //         .isNotEmpty;
                                                         debugPrint(
                                                             "decodedValue: $decodedValue");
                                                       } catch (_) {}
@@ -443,9 +463,9 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
                                                       final displayValue =
                                                           isZero
                                                               ? "0"
-                                                              : isValidString
+                                                              : (isPrintable
                                                                   ? decodedValue
-                                                                  : hexValue;
+                                                                  : hexValue);
 
                                                       debugPrint(
                                                           "displayValue: $displayValue");
@@ -513,87 +533,251 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
                                                   ),
                                                 ),
                                               );
-                                            } else if (type == 'notify' ||
+                                            }
+//                                             else if (type == 'notify' ||
+//                                                 type == 'notification') {
+//                                               return Padding(
+//                                                 padding:
+//                                                     const EdgeInsets.symmetric(
+//                                                         horizontal: 2.0),
+//                                                 child: GestureDetector(
+//                                                   onTap: () async {
+//                                                      final key =
+//                                                         _getCharacteristicKey(
+//                                                             service.uuid,
+//                                                             e.uuid);
+//                                                     final isCurrentlySubscribed =
+//                                                         _characteristicSubscriptions[
+//                                                                 key] ??
+//                                                             false;
+
+//                                                     if (isCurrentlySubscribed) {
+//                                                       await EmBleOpcodes
+//                                                           .unsubscription(
+//                                                         deviceId:
+//                                                             widget.deviceId,
+//                                                         service: service,
+//                                                         characteristic: e,
+//                                                       );
+//                                                     } else {
+
+//                                                       await EmBleOpcodes
+//                                                           .subscription(
+//                                                         deviceId:
+//                                                             widget.deviceId,
+//                                                         service: service,
+//                                                         characteristic: e,
+//                                                       );
+//                                                       debugPrint("added subscription");
+// UniversalBle.characteristicValueStream(widget.deviceId, e.uuid).listen((Uint8List value) {
+//   final hexString = hex.encode(value);
+//   debugPrint('📩 Notification from ${e.uuid}: $hexString');
+
+//   setState(() {
+//     _notificationValues[e.uuid] = hexString; // Store the received value
+//     // _showValueForCharacteristic[e.uuid] = true;
+//     // _characteristicValues[e.uuid] = hexString; // optional if already using
+//   });
+// });
+
+//                                                     }
+
+//                                                     setState(() {
+
+//                                                       _characteristicSubscriptions[
+//                                                               key] =
+//                                                           !isCurrentlySubscribed;
+//                                                     });
+
+//                                                     final subscribed =
+//                                                         isSubscribed(
+//                                                             service.uuid,
+//                                                             e.uuid);
+//                                                     debugPrint(
+//                                                         "notification: $subscribed");
+//                                                     final displayValue = subscribed
+//                                                         ? "Notifications are enabled"
+//                                                         : "Notifications are disabled";
+
+//                                                     setState(() {
+
+//                                                       _showValueForCharacteristic[
+//                                                           e.uuid] = true;
+//                                                       _characteristicValues[e
+//                                                           .uuid] = displayValue;
+//                                                     });
+
+//                                                     // toggleSubscription(
+//                                                     //     service.uuid, e.uuid);
+
+//                                                     // final subscribed =
+//                                                     //     isSubscribed(
+//                                                     //         service.uuid,
+//                                                     //         e.uuid);
+//                                                     // final displayValue = subscribed
+//                                                     //     ? "Notifications are enabled"
+//                                                     //     : "Notifications are disabled";
+
+//                                                     // setState(() {
+//                                                     //   _showValueForCharacteristic[
+//                                                     //       e.uuid] = true;
+//                                                     //   _characteristicValues[e
+//                                                     //       .uuid] = displayValue;
+//                                                     // });
+
+//                                                     // debugPrint(
+//                                                     //     "Status: $displayValue");
+//                                                   },
+//                                                   child: Container(
+//                                                     padding:
+//                                                         const EdgeInsets.all(
+//                                                             4.0),
+//                                                     decoration:
+//                                                         const BoxDecoration(
+//                                                       border: Border(
+//                                                         bottom: BorderSide(
+//                                                             color: Colors.black,
+//                                                             width: 1.5),
+//                                                       ),
+//                                                     ),
+//                                                     child: Stack(
+//                                                       alignment:
+//                                                           Alignment.center,
+//                                                       children: [
+//                                                         Icon(
+//                                                           isSubscribed(
+//                                                                   service.uuid,
+//                                                                   e.uuid)
+//                                                               ? Icons
+//                                                                   .notifications_on_outlined
+//                                                               : Icons
+//                                                                   .notifications_off_outlined,
+//                                                           size: 25,
+//                                                           color: Colors.grey,
+//                                                         )
+//                                                       ],
+//                                                     ),
+//                                                   ),
+//                                                 ),
+//                                               );
+//                                             }
+
+                                            else if (type == 'notify' ||
                                                 type == 'notification') {
+                                              final isAutoSubscribed = service
+                                                          .uuid
+                                                          .toLowerCase() ==
+                                                      '81cf7a98-454d-11e8-adc0-fa7ae01bd428' ||
+                                                  service.uuid.toLowerCase() ==
+                                                      '81cfa888-454d-11e8-adc0-fa7ae01bd428';
+                                              final key = _getCharacteristicKey(
+                                                  service.uuid, e.uuid);
+
+                                              if (isAutoSubscribed &&
+                                                  (_characteristicSubscriptions[
+                                                              key] ??
+                                                          false) ==
+                                                      false) {
+                                                EmBleOpcodes.subscription(
+                                                  deviceId: widget.deviceId,
+                                                  service: service,
+                                                  characteristic: e,
+                                                ).then((_) {
+                                                  debugPrint(
+                                                      "Auto-subscribe notify success for $key");
+                                                  setState(() {
+                                                    _characteristicSubscriptions[
+                                                        key] = true;
+                                                    _showValueForCharacteristic[
+                                                        e.uuid] = true;
+                                                    _characteristicValues[
+                                                            e.uuid] =
+                                                        "Notifications are enabled";
+                                                  });
+
+                                                  UniversalBle
+                                                          .characteristicValueStream(
+                                                              widget.deviceId,
+                                                              e.uuid)
+                                                      .listen(
+                                                          (Uint8List value) {
+                                                    final hexString =
+                                                        hex.encode(value);
+                                                    debugPrint(
+                                                        '📩 Auto-Notification from ${e.uuid}: $hexString');
+
+                                                    setState(() {
+                                                      _notificationValues[
+                                                          e.uuid] = hexString;
+                                                    });
+                                                  });
+                                                });
+                                              }
+
                                               return Padding(
                                                 padding:
                                                     const EdgeInsets.symmetric(
                                                         horizontal: 2.0),
                                                 child: GestureDetector(
-                                                  onTap: () async {
-                                                     final key =
-                                                        _getCharacteristicKey(
-                                                            service.uuid,
-                                                            e.uuid);
-                                                    final isCurrentlySubscribed =
-                                                        _characteristicSubscriptions[
-                                                                key] ??
-                                                            false;
+                                                  onTap: isAutoSubscribed
+                                                      ? null
+                                                      : () async {
+                                                          final isSubscribed =
+                                                              _characteristicSubscriptions[
+                                                                      key] ??
+                                                                  false;
 
-                                                    if (isCurrentlySubscribed) {
-                                                      await EmBleOpcodes
-                                                          .unsubscription(
-                                                        deviceId:
-                                                            widget.deviceId,
-                                                        service: service,
-                                                        characteristic: e,
-                                                      );
-                                                    } else {
-                                                      await EmBleOpcodes
-                                                          .subscription(
-                                                        deviceId:
-                                                            widget.deviceId,
-                                                        service: service,
-                                                        characteristic: e,
-                                                      );
-                                                    }
+                                                          if (isSubscribed) {
+                                                            await EmBleOpcodes
+                                                                .unsubscription(
+                                                              deviceId: widget
+                                                                  .deviceId,
+                                                              service: service,
+                                                              characteristic: e,
+                                                            );
+                                                          } else {
+                                                            await EmBleOpcodes
+                                                                .subscription(
+                                                              deviceId: widget
+                                                                  .deviceId,
+                                                              service: service,
+                                                              characteristic: e,
+                                                            );
 
-                                                    setState(() {
-                                                      _characteristicSubscriptions[
-                                                              key] =
-                                                          !isCurrentlySubscribed;
-                                                    });
+                                                            UniversalBle.characteristicValueStream(
+                                                                    widget
+                                                                        .deviceId,
+                                                                    e.uuid)
+                                                                .listen(
+                                                                    (Uint8List
+                                                                        value) {
+                                                              final hexString =
+                                                                  hex.encode(
+                                                                      value);
+                                                              debugPrint(
+                                                                  '📩 Notification from ${e.uuid}: $hexString');
 
+                                                              setState(() {
+                                                                _notificationValues[
+                                                                        e.uuid] =
+                                                                    hexString;
+                                                              });
+                                                            });
+                                                          }
 
-                                                    final subscribed =
-                                                        isSubscribed(
-                                                            service.uuid,
-                                                            e.uuid);
-                                                    debugPrint(
-                                                        "notification: $subscribed");
-                                                    final displayValue = subscribed
-                                                        ? "Notifications are enabled"
-                                                        : "Notifications are disabled";
-
-                                                    setState(() {
-                                                      _showValueForCharacteristic[
-                                                          e.uuid] = true;
-                                                      _characteristicValues[e
-                                                          .uuid] = displayValue;
-                                                    });
-
-
-                                                    // toggleSubscription(
-                                                    //     service.uuid, e.uuid);
-
-                                                    // final subscribed =
-                                                    //     isSubscribed(
-                                                    //         service.uuid,
-                                                    //         e.uuid);
-                                                    // final displayValue = subscribed
-                                                    //     ? "Notifications are enabled"
-                                                    //     : "Notifications are disabled";
-
-                                                    // setState(() {
-                                                    //   _showValueForCharacteristic[
-                                                    //       e.uuid] = true;
-                                                    //   _characteristicValues[e
-                                                    //       .uuid] = displayValue;
-                                                    // });
-
-                                                    // debugPrint(
-                                                    //     "Status: $displayValue");
-                                                  },
+                                                          setState(() {
+                                                            _characteristicSubscriptions[
+                                                                    key] =
+                                                                !isSubscribed;
+                                                            _showValueForCharacteristic[
+                                                                e.uuid] = true;
+                                                            _characteristicValues[
+                                                                    e.uuid] =
+                                                                !isSubscribed
+                                                                    ? "Notifications are enabled"
+                                                                    : "Notifications are disabled";
+                                                          });
+                                                        },
                                                   child: Container(
                                                     padding:
                                                         const EdgeInsets.all(
@@ -601,96 +785,224 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
                                                     decoration:
                                                         const BoxDecoration(
                                                       border: Border(
-                                                        bottom: BorderSide(
-                                                            color: Colors.black,
-                                                            width: 1.5),
-                                                      ),
+                                                          bottom: BorderSide(
+                                                              color:
+                                                                  Colors.black,
+                                                              width: 1.5)),
                                                     ),
                                                     child: Stack(
                                                       alignment:
                                                           Alignment.center,
                                                       children: [
                                                         Icon(
-                                                          isSubscribed(
-                                                                  service.uuid,
-                                                                  e.uuid)
+                                                          (_characteristicSubscriptions[
+                                                                      key] ??
+                                                                  false)
                                                               ? Icons
                                                                   .notifications_on_outlined
                                                               : Icons
                                                                   .notifications_off_outlined,
                                                           size: 25,
                                                           color: Colors.grey,
-                                                        )
+                                                        ),
                                                       ],
                                                     ),
                                                   ),
                                                 ),
                                               );
-                                            } else if (type == 'indicate') {
+                                            }
+
+                                            // else if (type == 'indicate') {
+                                            //   return Padding(
+                                            //     padding:
+                                            //         const EdgeInsets.symmetric(
+                                            //             horizontal: 2.0),
+                                            //     child: GestureDetector(
+                                            //       onTap: () async {
+                                            //         final key =
+                                            //             _getCharacteristicKey(
+                                            //                 service.uuid,
+                                            //                 e.uuid);
+                                            //         final isCurrentlySubscribed =
+                                            //             _characteristicSubscriptions[
+                                            //                     key] ??
+                                            //                 false;
+                                            //         debugPrint(
+                                            //             "toggleSubscription: $key, currently subscribed: $isCurrentlySubscribed");
+
+                                            //         if (isCurrentlySubscribed) {
+                                            //           await EmBleOpcodes
+                                            //               .unsubscription(
+                                            //             deviceId:
+                                            //                 widget.deviceId,
+                                            //             service: service,
+                                            //             characteristic: e,
+                                            //           );
+                                            //         } else {
+                                            //           await EmBleOpcodes
+                                            //               .subscription(
+                                            //             deviceId:
+                                            //                 widget.deviceId,
+                                            //             service: service,
+                                            //             characteristic: e,
+                                            //           );
+                                            //         }
+
+                                            //         setState(() {
+                                            //           _characteristicSubscriptions[
+                                            //                   key] =
+                                            //               !isCurrentlySubscribed;
+                                            //         });
+
+                                            //         // toggleSubscription(
+                                            //         //     service.uuid, e.uuid);
+
+                                            //         final subscribed =
+                                            //             isSubscribed(
+                                            //                 service.uuid,
+                                            //                 e.uuid);
+                                            //         debugPrint(
+                                            //             "indications: $subscribed");
+                                            //         final displayValue = subscribed
+                                            //             ? "Indications are enabled"
+                                            //             : "Indications are disabled";
+
+                                            //         setState(() {
+                                            //           _showValueForCharacteristic[
+                                            //               e.uuid] = true;
+                                            //           _characteristicValues[e
+                                            //               .uuid] = displayValue;
+                                            //         });
+
+                                            //         debugPrint(
+                                            //             "Status: $displayValue");
+                                            //       },
+                                            //       child: Container(
+                                            //         padding:
+                                            //             const EdgeInsets.all(
+                                            //                 4.0),
+                                            //         decoration:
+                                            //             const BoxDecoration(
+                                            //           border: Border(
+                                            //             bottom: BorderSide(
+                                            //                 color: Colors.black,
+                                            //                 width: 1.5),
+                                            //           ),
+                                            //         ),
+                                            //         child: Stack(
+                                            //           alignment:
+                                            //               Alignment.center,
+                                            //           children: [
+                                            //             Icon(
+                                            //               isSubscribed(
+                                            //                       service.uuid,
+                                            //                       e.uuid)
+                                            //                   ? Icons
+                                            //                       .notifications_on_outlined
+                                            //                   : Icons
+                                            //                       .notifications_off_outlined,
+                                            //               size: 25,
+                                            //               color: Colors.grey,
+                                            //             )
+                                            //           ],
+                                            //         ),
+                                            //       ),
+                                            //     ),
+                                            //   );
+                                            // }
+
+                                            else if (type == 'indicate') {
+                                              final isAutoSubscribedService = service
+                                                          .uuid
+                                                          .toLowerCase() ==
+                                                      '81cf7a98-454d-11e8-adc0-fa7ae01bd428' ||
+                                                  service.uuid.toLowerCase() ==
+                                                      '81cfa888-454d-11e8-adc0-fa7ae01bd428';
+                                              final key = _getCharacteristicKey(
+                                                  service.uuid, e.uuid);
+
+                                              if (isAutoSubscribedService &&
+                                                  (_characteristicSubscriptions[
+                                                              key] ??
+                                                          false) ==
+                                                      false) {
+                                                // Automatically subscribe once if not already subscribed
+                                                EmBleOpcodes.subscription(
+                                                  deviceId: widget.deviceId,
+                                                  service: service,
+                                                  characteristic: e,
+                                                ).then((_) {
+                                                  setState(() {
+                                                    _characteristicSubscriptions[
+                                                        key] = true;
+                                                    _showValueForCharacteristic[
+                                                        e.uuid] = true;
+                                                    _characteristicValues[
+                                                            e.uuid] =
+                                                        "Indications are enabled";
+                                                  });
+                                                });
+                                              }
+
                                               return Padding(
                                                 padding:
                                                     const EdgeInsets.symmetric(
                                                         horizontal: 2.0),
                                                 child: GestureDetector(
-                                                  onTap: () async {
-                                                    final key =
-                                                        _getCharacteristicKey(
-                                                            service.uuid,
-                                                            e.uuid);
-                                                    final isCurrentlySubscribed =
-                                                        _characteristicSubscriptions[
-                                                                key] ??
-                                                            false;
-                                                    debugPrint(
-                                                        "toggleSubscription: $key, currently subscribed: $isCurrentlySubscribed");
+                                                  onTap: isAutoSubscribedService
+                                                      ? null // Disable tapping for auto-subscribed services
+                                                      : () async {
+                                                          final isCurrentlySubscribed =
+                                                              _characteristicSubscriptions[
+                                                                      key] ??
+                                                                  false;
+                                                          debugPrint(
+                                                              "toggleSubscription: $key, currently subscribed: $isCurrentlySubscribed");
 
-                                                    if (isCurrentlySubscribed) {
-                                                      await EmBleOpcodes
-                                                          .unsubscription(
-                                                        deviceId:
-                                                            widget.deviceId,
-                                                        service: service,
-                                                        characteristic: e,
-                                                      );
-                                                    } else {
-                                                      await EmBleOpcodes
-                                                          .subscription(
-                                                        deviceId:
-                                                            widget.deviceId,
-                                                        service: service,
-                                                        characteristic: e,
-                                                      );
-                                                    }
+                                                          if (isCurrentlySubscribed) {
+                                                            await EmBleOpcodes
+                                                                .unsubscription(
+                                                              deviceId: widget
+                                                                  .deviceId,
+                                                              service: service,
+                                                              characteristic: e,
+                                                            );
+                                                          } else {
+                                                            await EmBleOpcodes
+                                                                .subscription(
+                                                              deviceId: widget
+                                                                  .deviceId,
+                                                              service: service,
+                                                              characteristic: e,
+                                                            );
+                                                          }
 
-                                                    setState(() {
-                                                      _characteristicSubscriptions[
-                                                              key] =
-                                                          !isCurrentlySubscribed;
-                                                    });
+                                                          setState(() {
+                                                            _characteristicSubscriptions[
+                                                                    key] =
+                                                                !isCurrentlySubscribed;
+                                                          });
 
-                                                    // toggleSubscription(
-                                                    //     service.uuid, e.uuid);
+                                                          final subscribed =
+                                                              isSubscribed(
+                                                                  service.uuid,
+                                                                  e.uuid);
+                                                          final displayValue =
+                                                              subscribed
+                                                                  ? "Indications are enabled"
+                                                                  : "Indications are disabled";
 
-                                                    final subscribed =
-                                                        isSubscribed(
-                                                            service.uuid,
-                                                            e.uuid);
-                                                    debugPrint(
-                                                        "indications: $subscribed");
-                                                    final displayValue = subscribed
-                                                        ? "Indications are enabled"
-                                                        : "Indications are disabled";
+                                                          setState(() {
+                                                            _showValueForCharacteristic[
+                                                                e.uuid] = true;
+                                                            _characteristicValues[
+                                                                    e.uuid] =
+                                                                displayValue;
+                                                          });
 
-                                                    setState(() {
-                                                      _showValueForCharacteristic[
-                                                          e.uuid] = true;
-                                                      _characteristicValues[e
-                                                          .uuid] = displayValue;
-                                                    });
-
-                                                    debugPrint(
-                                                        "Status: $displayValue");
-                                                  },
+                                                          debugPrint(
+                                                              "Status: $displayValue");
+                                                        },
                                                   child: Container(
                                                     padding:
                                                         const EdgeInsets.all(
@@ -708,9 +1020,9 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
                                                           Alignment.center,
                                                       children: [
                                                         Icon(
-                                                          isSubscribed(
-                                                                  service.uuid,
-                                                                  e.uuid)
+                                                          (_characteristicSubscriptions[
+                                                                      key] ??
+                                                                  false)
                                                               ? Icons
                                                                   .notifications_on_outlined
                                                               : Icons
@@ -734,23 +1046,23 @@ class _ServicesListWidgetState extends State<ServicesListWidget> {
                                                     // toggleSubscription(
                                                     //     service.uuid, e.uuid);
 
-                                                    // final subscribed =
-                                                    //     isSubscribed(
-                                                    //         service.uuid,
-                                                    //         e.uuid);
-                                                    // final displayValue = subscribed
-                                                    //     ? "Notifications and indications are enabled"
-                                                    //     : "Notifications and indications are disabled";
+                                                    final subscribed =
+                                                        isSubscribed(
+                                                            service.uuid,
+                                                            e.uuid);
+                                                    final displayValue = subscribed
+                                                        ? "Notifications and indications are enabled"
+                                                        : "Notifications and indications are disabled";
 
-                                                    // setState(() {
-                                                    //   _showValueForCharacteristic[
-                                                    //       e.uuid] = true;
-                                                    //   _characteristicValues[e
-                                                    //       .uuid] = displayValue;
-                                                    // });
+                                                    setState(() {
+                                                      _showValueForCharacteristic[
+                                                          e.uuid] = true;
+                                                      _characteristicValues[e
+                                                          .uuid] = displayValue;
+                                                    });
 
-                                                    // debugPrint(
-                                                    //     "Status: $displayValue");
+                                                    debugPrint(
+                                                        "Status: $displayValue");
                                                   },
                                                   child: Container(
                                                     padding:
